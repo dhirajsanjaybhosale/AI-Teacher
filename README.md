@@ -1,11 +1,76 @@
-# 🤖 AI Teacher — Adaptive Pedagogical Video Platform
-### Round 2 Submission — AI Innovation Hackathon 2026
+# 🤖 AI Teacher — Human-Like Adaptive AI Educator
+### AI Innovation Hackathon 2026 — Round 2
 
-**AI Teacher** is a full-stack, autonomous, adaptive educational studio that transforms textbook chapters (PDFs) or topic prompts into interactive, structured, multi-segment narrated lessons featuring a talking AI avatar, synchronized visual slide decks, formative misconception-diagnosing check questions, on-the-fly remediation video generation, and summative mastery quizzes with comprehensive analytical feedback reports.
+**AI Teacher** is a full-stack, autonomous, adaptive educational platform that transforms textbook chapters (PDFs) or topic prompts into interactive, structured, multi-segment narrated lessons featuring a talking AI avatar, synchronized visual slide decks, formative misconception-diagnosing check questions, on-the-fly remediation video generation, and summative mastery quizzes with comprehensive analytical feedback reports.
 
 ---
 
-## 🌟 Key Highlights & Architectural Features
+## 💡 The Problem & The Solution
+
+- **The Problem**: Traditional digital learning platforms (videos, static quizzes, generic chatbots) fail to behave like real human teachers. When a student misunderstands a concept, standard platforms either just say "Incorrect" or provide the same canned explanation repeatedly.
+- **The Solution**: An AI Educator that follows the true human teaching lifecycle:
+  $$\text{Understand} \longrightarrow \text{Plan} \longrightarrow \text{Explain} \longrightarrow \text{Demonstrate} \longrightarrow \text{Question} \longrightarrow \text{Evaluate} \longrightarrow \text{Adapt} \longrightarrow \text{Continue} \longrightarrow \text{Assess} \longrightarrow \text{Recommend}$$
+
+The **adaptive teaching loop is the core innovation**: when a student submits an incorrect answer, the system semantically diagnoses their specific mental model misconception, formulates an alternative explanation with a fresh intuitive analogy, dynamically synthesizes a targeted remediation video clip on the fly, and re-evaluates their comprehension.
+
+---
+
+## 🏛️ System Architecture
+
+```text
+                                 USER INTERFACE (React 19 + Vite)
+      ┌──────────────────────────────────────────────────────────────────────────────────┐
+      │  • PDF Dropzone / Topic Prompt Selector                                           │
+      │  • Personalization Matrix: Level (Beginner/Inter/Adv), Time (5-60m), Lang (EN/HI)│
+      │  • Interactive Studio: Video Player + Formative Q&A Dock + Confetti Feedback     │
+      │  • Summative Mastery Quiz + Circular Mastery Gauge + Learning Horizon Pathway    │
+      └────────────────────────────────────────┬─────────────────────────────────────────┘
+                                               │ HTTP / REST APIs
+                                               ▼
+                              BACKEND SERVICE (FastAPI + Uvicorn)
+      ┌──────────────────────────────────────────────────────────────────────────────────┐
+      │                                                                                  │
+      │  ┌────────────────────────────────────────────────────────────────────────────┐  │
+      │  │ 1. RAG Ingestion Pipeline                                                  │  │
+      │  │    PDF ──> PyMuPDF ──> Semantic Chunker ──> sentence-transformers          │  │
+      │  │                         (all-MiniLM-L6-v2) ──> FAISS Vector Index          │  │
+      │  └─────────────────────────────────────┬──────────────────────────────────────┘  │
+      │                                        │ Top-k Context                           │
+      │  ┌─────────────────────────────────────▼──────────────────────────────────────┐  │
+      │  │ 2. Curriculum & Lesson Planner (LLM Abstraction Layer)                    │  │
+      │  │    GeminiProvider / GroqProvider / OfflineDomainEngine                     │  │
+      │  │    Outputs Structured JSON: Segments, Narrations, Analogies, Questions     │  │
+      │  └─────────────────────────────────────┬──────────────────────────────────────┘  │
+      │                                        │ Segment Script & Keypoints              │
+      │  ┌─────────────────────────────────────▼──────────────────────────────────────┐  │
+      │  │ 3. Narration & Video Compositor                                            │  │
+      │  │    • TTS: Edge-TTS (en-US-Jenny / hi-IN-Swara) / pyttsx3 fallback          │  │
+      │  │    • RMS Audio Envelope Analysis (25 fps energy extraction)                │  │
+      │  │    • Avatar Engine: GPU (Wav2Lip/SadTalker) OR CPU (2D Vector Mouth States)│  │
+      │  │    • Slide Deck: Cosmic Tech Frame + Badges + Bullets + Subtitle Ticker    │  │
+      │  │    • FFmpeg Pipeline ──> Playable H.264/AAC MP4                            │  │
+      │  └─────────────────────────────────────┬──────────────────────────────────────┘  │
+      │                                        │ Playable MP4 Video Stream               │
+      │  ┌─────────────────────────────────────▼──────────────────────────────────────┐  │
+      │  │ 4. Formative Interaction & Adaptive Remediation Loop                       │  │
+      │  │    • Student Answer ──> Semantic Evaluator (LLM)                           │  │
+      │  │    • If Incorrect: Diagnose Specific Mental Model Misconception            │  │
+      │  │    • Synthesize Novel Re-explanation + Fresh Analogy                       │  │
+      │  │    • Dynamically Render New Video Clip ──> Re-present to Learner           │  │
+      │  └─────────────────────────────────────┬──────────────────────────────────────┘  │
+      │                                        │ Quiz Generation & Final Assessment      │
+      │  ┌─────────────────────────────────────▼──────────────────────────────────────┐  │
+      │  │ 5. Summative Assessment & Analytical Report Generator                     │  │
+      │  │    • Multi-Question Quiz (MCQ / Application / Conceptual)                  │  │
+      │  │    • Mastery Scoring + Concepts Mastered vs Weak Areas                     │  │
+      │  │    • Actionable Guidance + Next Topic Recommendation (1-Click Launch)      │  │
+      │  └────────────────────────────────────────────────────────────────────────────┘  │
+      └──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 🌟 Key Highlights & Features
 
 1. **RAG-Grounded Ingestion Pipeline**:
    - Parses complex PDF chapters with **PyMuPDF**, chunks content into overlapping semantic windows, and generates high-dimensional embeddings locally with **`sentence-transformers` (`all-MiniLM-L6-v2`)**.
@@ -36,7 +101,7 @@
 
 ## 📂 Repository Structure
 
-```
+```text
 AI-Teacher/
 ├── backend/
 │   ├── app/
@@ -47,25 +112,32 @@ AI-Teacher/
 │   │   ├── lesson_planning/      # Pydantic schemas & multi-segment curriculum planner
 │   │   ├── llm/                  # Unified LLM provider (Gemini + Groq + Offline Engine)
 │   │   ├── narration_avatar/     # Neural TTS, GPU/CPU avatar engine, FFmpeg video assembler
+│   │   ├── services/             # GPU detection, storage manager, LLM factory
 │   │   └── session_store.py      # Active lesson and quiz session manager
 │   ├── main.py                   # FastAPI application server entrypoint
 │   ├── requirements.txt          # Python dependencies
+│   ├── test_demo_flow.py         # Automated QA & end-to-end verification script
 │   └── .env.example              # Environment variables template
 ├── frontend/
 │   ├── src/
 │   │   ├── api/client.js         # API integration client
 │   │   ├── components/           # UI components (Header, UploadOrTopicForm, VideoPlayer, QuestionPrompt, QuizView, FeedbackReport, LoadingOverlay)
 │   │   ├── App.jsx               # Main application controller
-│   │   ├── App.css               # Component styles
-│   │   └── index.css             # Design tokens & glassmorphic system
+│   │   ├── App.css               # Component styles & design system
+│   │   └── index.css             # Base tokens & dark-mode styling
+│   ├── public/
+│   │   ├── sample_chapter.pdf    # Sample 1: Electricity & Ohm's Law
+│   │   └── cellular_respiration_chapter.pdf # Sample 2: Cellular Respiration
 │   └── package.json
 ├── sample_data/
-│   └── cellular_respiration_chapter.pdf   # Pre-packaged PDF chapter for instant live testing
+│   ├── sample_chapter.pdf        # Electricity & Ohm's Law chapter
+│   ├── cellular_respiration_chapter.pdf # Biology chapter
+│   ├── generate_electricity_pdf.py
+│   └── generate_sample_pdf.py
 ├── docs/
-│   ├── README.md
-│   ├── THIRD_PARTY_TOOLS.md
-│   ├── SRS.md
-│   └── KNOWN_LIMITATIONS.md
+│   ├── THIRD_PARTY_TOOLS.md      # Comprehensive tool, license, and model documentation
+│   ├── KNOWN_LIMITATIONS.md      # Transparent scope limitations & future roadmap
+│   └── SRS.md                    # System requirements specification
 └── README.md
 ```
 
@@ -84,9 +156,9 @@ cd backend
 
 # Create virtual environment (optional)
 python -m venv venv
-# Windows:
+# Windows activation:
 .\venv\Scripts\activate
-# Linux/macOS:
+# Linux/macOS activation:
 source venv/bin/activate
 
 # Install dependencies
@@ -96,9 +168,11 @@ pip install -r requirements.txt
 copy .env.example .env
 
 # Start FastAPI backend
-python -m uvicorn main:app --host 127.0.0.1 --port 8000 --reload
+python main.py
+# Or with uvicorn directly:
+uvicorn main:app --host 127.0.0.1 --port 8000 --reload
 ```
-The backend API is accessible at `http://127.0.0.1:8000` (Swagger docs: `http://127.0.0.1:8000/docs`).
+The backend API is accessible at `http://127.0.0.1:8000` (Swagger interactive docs: `http://127.0.0.1:8000/docs`).
 
 ### 2. Frontend Setup
 ```bash
@@ -114,16 +188,37 @@ Open `http://127.0.0.1:5173` in your browser.
 
 ---
 
-## 🎬 How to Run the Demo
+## 🧪 Automated Verification Suite
 
+To verify the complete 7-stage end-to-end pipeline automatically:
+```bash
+cd backend
+python test_demo_flow.py
+```
+This automatically verifies:
+1. System Health & Hardware Mode Detection
+2. PDF Ingestion, Chunking, Embedding, FAISS Indexing & RAG Retrieval
+3. Adaptive Lesson Planning & Curriculum Generation
+4. Neural TTS Synthesis & RMS Audio Amplitude Analysis
+5. Talking Avatar Frame Generation & FFmpeg Video Assembly
+6. Formative Assessment: Misconception Diagnosis & Adaptive Reteaching Video Loop
+7. Summative Assessment: Quiz Generation, Scoring, and Feedback Reporting
+
+---
+
+## 🎬 Hackathon Live Demo Walkthrough
+
+### Scenario: The Electricity & Ohm's Law Masterclass
 1. Open `http://127.0.0.1:5173`.
-2. Click **"⚡ Load Sample Chapter: Cellular Respiration (PDF)"** (or upload your own PDF or type any topic).
-3. Select your preferred **Target Level** (*Beginner*), **Time Budget** (*5 Min*), and **Language** (*English* or *Hindi*).
+2. In the setup screen, click **"⚡ Sample 1: Electricity & Ohm's Law (PDF)"** (or upload any PDF / type any topic).
+3. Set **Target Level** to *Beginner*, **Time Budget** to *5 Min (or custom)*, and **Language** to *English (or Hindi)*.
 4. Click **"Launch Interactive AI Teacher Lesson"**.
-5. Watch the animated avatar teach **Segment 1** with synchronized slides and subtitles.
-6. When the video ends, the **Formative Check Question** appears:
-   - **To test the Adaptive Remediation Loop**: Type or select an incorrect answer (e.g. *"The cell directly burns glucose without making ATP"*).
-   - Observe how the AI diagnoses the exact misconception (*"Conflated storage fuel with currency"*), synthesizes a new remediation script, and renders a new video segment on-the-fly!
-   - Click **"Watch Custom Re-Explanation Video"** to watch the remediation clip.
-7. Submit a correct answer to advance.
-8. Complete the **Summative Quiz** to view the **Pedagogical Mastery Report** with your score gauge, understood concepts, review areas, and recommended next topic.
+5. **Watch Segment 1**: Dr. Nova explains Voltage, Current, and Resistance with synchronized slide deck, key takeaway cards, audio visualizers, and subtitle ticker.
+6. **Formative Check**:
+   - Enter an incorrect answer (e.g., *"Current increases when resistance increases because more resistance creates more friction"*).
+   - **Observe Adaptation**: The AI diagnoses the exact misconception (*"Student believes current increases with resistance, confusing inverse with direct proportionality"*), generates a fresh water-pipe analogy, and synthesizes a **custom remediation video clip on the spot**!
+   - Click **"Watch Custom Re-Explanation Video"** to view the remedial video.
+7. Submit the correct answer to advance.
+8. Complete the **Summative Mastery Quiz**.
+9. Review the **Pedagogical Mastery Report** with your score gauge, mastered concepts, areas for review, and 1-click button to launch the recommended next topic (*"Advanced Conceptual Principles"*).
+

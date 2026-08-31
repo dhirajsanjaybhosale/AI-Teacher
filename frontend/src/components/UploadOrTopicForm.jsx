@@ -9,11 +9,12 @@ const PRESET_TOPICS = [
 ];
 
 export default function UploadOrTopicForm({ onSubmit, isLoading }) {
-  const [activeTab, setActiveTab] = useState('pdf'); // 'pdf' or 'topic'
+  const [activeTab, setActiveTab] = useState('topic'); // 'topic' or 'pdf'
   const [pdfFile, setPdfFile] = useState(null);
   const [topicText, setTopicText] = useState('');
   const [level, setLevel] = useState('beginner');
-  const [timeMinutes, setTimeMinutes] = useState(5);
+  const [timeMinutes, setTimeMinutes] = useState(20);
+  const [goal, setGoal] = useState('understand');
   const [language, setLanguage] = useState('en');
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -35,22 +36,32 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
     }
   };
 
-  const handleLoadSamplePdf = async () => {
+  const handleLoadSamplePdf = async (sampleName = "sample_chapter.pdf", title = "Introduction to Electricity & Ohm's Law") => {
     try {
-      // Create a virtual file object representing the sample chapter
-      const sampleBlob = new Blob(["Sample Cellular Respiration Chapter Content"], { type: "application/pdf" });
-      const sampleFile = new File([sampleBlob], "cellular_respiration_chapter.pdf", { type: "application/pdf" });
-      setPdfFile(sampleFile);
+      const res = await fetch(`/${sampleName}`);
+      if (res.ok) {
+        const blob = await res.blob();
+        const file = new File([blob], sampleName, { type: "application/pdf" });
+        setPdfFile(file);
+      } else {
+        const sampleBlob = new Blob([`Sample Chapter Content for ${title}`], { type: "application/pdf" });
+        const sampleFile = new File([sampleBlob], sampleName, { type: "application/pdf" });
+        setPdfFile(sampleFile);
+      }
       setActiveTab('pdf');
     } catch (err) {
-      console.error(err);
+      console.error("Error loading sample PDF:", err);
+      const sampleBlob = new Blob([`Sample Chapter Content for ${title}`], { type: "application/pdf" });
+      const sampleFile = new File([sampleBlob], sampleName, { type: "application/pdf" });
+      setPdfFile(sampleFile);
+      setActiveTab('pdf');
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (activeTab === 'pdf' && !pdfFile) {
-      alert("Please select or drop a PDF file, or choose the sample PDF.");
+      alert("Please select or drop a PDF file, or choose a sample PDF.");
       return;
     }
     if (activeTab === 'topic' && !topicText.trim()) {
@@ -63,6 +74,7 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
       topic: activeTab === 'topic' ? topicText : (pdfFile ? pdfFile.name.replace('.pdf', '') : ''),
       level,
       timeMinutes,
+      goal,
       language
     });
   };
@@ -78,8 +90,8 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
         The Future of <span className="text-gradient">Personalized Education</span>
       </h1>
       <p className="hero-description">
-        Upload any textbook chapter or choose a topic. Your AI Teacher will plan a tailored curriculum,
-        narrate with dynamic visual slides and synchronized avatar, and adapt re-explanations to your exact misconceptions.
+        Type ANY educational topic or upload a textbook chapter. Your AI Teacher plans a tailored curriculum,
+        narrates with synchronized visual slides & avatar, and adapts re-explanations to your exact misconceptions.
       </p>
 
       <form className="form-card glass-panel glass-panel-glow" onSubmit={handleSubmit}>
@@ -87,21 +99,61 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
         <div className="tab-switcher">
           <button
             type="button"
-            className={`tab-btn ${activeTab === 'pdf' ? 'active' : ''}`}
-            onClick={() => setActiveTab('pdf')}
-          >
-            <Upload size={18} />
-            <span>Upload PDF Chapter</span>
-          </button>
-          <button
-            type="button"
             className={`tab-btn ${activeTab === 'topic' ? 'active' : ''}`}
             onClick={() => setActiveTab('topic')}
           >
             <Sparkles size={18} />
-            <span>Type Any Topic</span>
+            <span>Type Any Educational Topic</span>
+          </button>
+          <button
+            type="button"
+            className={`tab-btn ${activeTab === 'pdf' ? 'active' : ''}`}
+            onClick={() => setActiveTab('pdf')}
+          >
+            <Upload size={18} />
+            <span>Upload PDF Chapter (RAG)</span>
           </button>
         </div>
+
+        {/* Tab Content: Topic Input */}
+        {activeTab === 'topic' && (
+          <div className="tab-section">
+            <div className="input-group">
+              <label className="input-label">What concept or topic would you like to master?</label>
+              <input
+                type="text"
+                className="text-input"
+                placeholder="e.g., Teach me Machine Learning from beginner level, Explain DBMS Normalization, Newton's Laws..."
+                value={topicText}
+                onChange={(e) => setTopicText(e.target.value)}
+              />
+            </div>
+
+            <div className="presets-wrapper">
+              <span className="presets-label">⚡ Multi-Domain Topic Suggestions:</span>
+              <div className="preset-chips">
+                {[
+                  { title: "Machine Learning & Neural Networks", category: "AI & ML" },
+                  { title: "DBMS Normalization & Relational Design", category: "Computer Science" },
+                  { title: "Newton's Laws of Motion & Dynamics", category: "Physics" },
+                  { title: "Introduction to Electricity & Ohm's Law", category: "Circuits" },
+                  { title: "Cellular Respiration & ATP Synthase", category: "Biology" },
+                  { title: "Quantum Superposition & Qubits", category: "Quantum" }
+                ].map((p, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    className="chip-btn"
+                    onClick={() => setTopicText(p.title)}
+                  >
+                    <span>{p.title}</span>
+                    <span className="chip-cat">{p.category}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Tab Content: PDF Dropzone */}
         {activeTab === 'pdf' && (
@@ -128,7 +180,7 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
                   </div>
                   <div className="file-details">
                     <p className="file-name">{pdfFile.name}</p>
-                    <p className="file-size">{(pdfFile.size / 1024).toFixed(1)} KB • Ready for RAG Analysis</p>
+                    <p className="file-size">{(pdfFile.size / 1024).toFixed(1)} KB • Grounded RAG Ingestion Active</p>
                   </div>
                   <span className="file-badge">Selected</span>
                 </div>
@@ -138,53 +190,29 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
                     <Upload size={28} />
                   </div>
                   <p className="drop-title">Drag & drop your PDF chapter here</p>
-                  <p className="drop-sub">or click to browse your local documents</p>
+                  <p className="drop-sub">or click to browse local files for vector grounding</p>
                 </div>
               )}
             </div>
 
             {/* Quick Demo Sample Action */}
             <div className="sample-quick-bar">
-              <span className="sample-label">⚡ Hackathon Demo Fast-Track:</span>
-              <button
-                type="button"
-                className="btn-sample-chip"
-                onClick={handleLoadSamplePdf}
-              >
-                Load Sample Chapter: <strong>Cellular Respiration (PDF)</strong>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Tab Content: Topic Input */}
-        {activeTab === 'topic' && (
-          <div className="tab-section">
-            <div className="input-group">
-              <label className="input-label">What concept or topic would you like to master?</label>
-              <input
-                type="text"
-                className="text-input"
-                placeholder="e.g., Quantum Entanglement, CRISPR Gene Editing, Photosynthesis..."
-                value={topicText}
-                onChange={(e) => setTopicText(e.target.value)}
-              />
-            </div>
-
-            <div className="presets-wrapper">
-              <span className="presets-label">Popular Suggestions:</span>
-              <div className="preset-chips">
-                {PRESET_TOPICS.map((p, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    className="chip-btn"
-                    onClick={() => setTopicText(p.title)}
-                  >
-                    <span>{p.title}</span>
-                    <span className="chip-cat">{p.category}</span>
-                  </button>
-                ))}
+              <span className="sample-label">⚡ Benchmark Chapters:</span>
+              <div className="sample-buttons-group">
+                <button
+                  type="button"
+                  className="btn-sample-chip"
+                  onClick={() => handleLoadSamplePdf("sample_chapter.pdf", "Electricity & Ohm's Law")}
+                >
+                  ⚡ Chapter 1: <strong>Electricity & Circuits (PDF)</strong>
+                </button>
+                <button
+                  type="button"
+                  className="btn-sample-chip"
+                  onClick={() => handleLoadSamplePdf("cellular_respiration_chapter.pdf", "Cellular Respiration")}
+                >
+                  🧬 Chapter 2: <strong>Cellular Respiration (PDF)</strong>
+                </button>
               </div>
             </div>
           </div>
@@ -200,8 +228,8 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
             </label>
             <div className="pill-group">
               {[
-                { id: 'beginner', label: 'Beginner', desc: 'Intuitive & Concept-focused' },
-                { id: 'intermediate', label: 'Intermediate', desc: 'Mechanisms & Processes' },
+                { id: 'beginner', label: 'Beginner', desc: 'Intuitive & Analogies' },
+                { id: 'intermediate', label: 'Intermediate', desc: 'Mechanisms & Equations' },
                 { id: 'advanced', label: 'Advanced', desc: 'Deep-dive & Rigorous' }
               ].map((lvl) => (
                 <button
@@ -224,10 +252,11 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
             </label>
             <div className="pill-group">
               {[
-                { mins: 5, segs: '2 segments' },
-                { mins: 10, segs: '3 segments' },
-                { mins: 15, segs: '4 segments' },
-                { mins: 20, segs: '5 segments' }
+                { mins: 5, segs: '2 segs' },
+                { mins: 10, segs: '3 segs' },
+                { mins: 20, segs: '4 segs' },
+                { mins: 30, segs: '5 segs' },
+                { mins: 60, segs: '6 segs' }
               ].map((t) => (
                 <button
                   key={t.mins}
@@ -235,8 +264,32 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
                   className={`pill-btn ${timeMinutes === t.mins ? 'active' : ''}`}
                   onClick={() => setTimeMinutes(t.mins)}
                 >
-                  <span className="pill-title">{t.mins} Min</span>
+                  <span className="pill-title">{t.mins}m</span>
                   <span className="pill-sub">{t.segs}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Learning Goal */}
+          <div className="pref-box">
+            <label className="pref-label">
+              <Sparkles size={16} />
+              <span>Learning Goal</span>
+            </label>
+            <div className="pill-group">
+              {[
+                { id: 'understand', label: 'Intuition' },
+                { id: 'exam', label: 'Exam Prep' },
+                { id: 'interview', label: 'Interview Depth' }
+              ].map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  className={`pill-btn ${goal === g.id ? 'active' : ''}`}
+                  onClick={() => setGoal(g.id)}
+                >
+                  <span className="pill-title">{g.label}</span>
                 </button>
               ))}
             </div>

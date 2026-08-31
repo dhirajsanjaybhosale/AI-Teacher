@@ -44,9 +44,10 @@ async def submit_quiz(sub: QuizSubmission):
         session_store.save_quiz(quiz)
 
     print(f"[ASSESSMENT] Scoring quiz submission and compiling feedback report for '{lesson.title}'...")
-    report = report_generator.generate_report(lesson, quiz, sub)
+    session_misconceptions = session_store.get_misconceptions(sub.lesson_id)
+    report = report_generator.generate_report(lesson, quiz, sub, misconceptions=session_misconceptions)
     session_store.save_report(report)
-    print(f"[ASSESSMENT] Final feedback report created: Score={report.total_score}/{report.max_score} ({report.percentage}%), Next topic='{report.next_recommended_topic}'.")
+    print(f"[ASSESSMENT] Final feedback report created: Score={report.total_score}/{report.max_score} ({report.percentage}%), Misconceptions remediated={len(report.misconceptions)}, Next topic='{report.next_recommended_topic}'.")
     return report
 
 

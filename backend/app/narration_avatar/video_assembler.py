@@ -176,43 +176,59 @@ class VideoAssembler:
                 slide_rect = [slide_x, slide_y, slide_x + slide_w, slide_y + slide_h]
                 draw.rounded_rectangle(slide_rect, radius=18, fill=(17, 24, 39), outline=(55, 65, 81), width=1)
 
-                # Segment Title
+                # Segment Title & Visual Type Badge
                 seg_title = segment.title
-                if len(seg_title) > 42:
-                    seg_title = seg_title[:40] + "..."
-                draw.text((slide_x + 28, slide_y + 22), seg_title, font=title_font, fill=(248, 250, 252))
+                if len(seg_title) > 38:
+                    seg_title = seg_title[:36] + "..."
+                draw.text((slide_x + 28, slide_y + 20), seg_title, font=title_font, fill=(248, 250, 252))
+
+                # Diagram Type Badge
+                v_type = (segment.visual_diagram_type or "CONCEPT").upper()
+                v_badge_w = len(v_type) * 8 + 16
+                v_badge_rect = [slide_x + slide_w - v_badge_w - 28, slide_y + 22, slide_x + slide_w - 28, slide_y + 46]
+                draw.rounded_rectangle(v_badge_rect, radius=6, fill=(30, 41, 59), outline=(99, 102, 241), width=1)
+                draw.text((slide_x + slide_w - v_badge_w - 20, slide_y + 26), v_type, font=small_font, fill=(165, 180, 252))
 
                 # Decorative underline
                 underline_color = (245, 158, 11) if is_remediation else (99, 102, 241)
-                draw.rounded_rectangle([slide_x + 28, slide_y + 64, slide_x + 180, slide_y + 68], radius=2, fill=underline_color)
+                draw.rounded_rectangle([slide_x + 28, slide_y + 60, slide_x + 180, slide_y + 64], radius=2, fill=underline_color)
 
                 # Key Points Cards
-                kp_y = slide_y + 82
+                kp_y = slide_y + 76
                 key_points = segment.key_points if segment.key_points else ["Understand fundamental concept", "Apply practical reasoning", "Verify key mechanism"]
-                for k_i, point in enumerate(key_points[:3]):
+                for k_i, point in enumerate(key_points[:2]):
                     # Card box
-                    card_r = [slide_x + 28, kp_y, slide_x + slide_w - 28, kp_y + 62]
-                    draw.rounded_rectangle(card_r, radius=10, fill=(26, 34, 52), outline=(51, 65, 85), width=1)
+                    card_r = [slide_x + 28, kp_y, slide_x + slide_w - 28, kp_y + 54]
+                    draw.rounded_rectangle(card_r, radius=8, fill=(26, 34, 52), outline=(51, 65, 85), width=1)
 
                     # Number badge
-                    badge_box = [slide_x + 40, kp_y + 14, slide_x + 74, kp_y + 48]
+                    badge_box = [slide_x + 38, kp_y + 12, slide_x + 66, kp_y + 42]
                     badge_fill = (99, 102, 241) if not is_remediation else (217, 119, 6)
-                    draw.rounded_rectangle(badge_box, radius=6, fill=badge_fill)
-                    draw.text((slide_x + 51, kp_y + 19), str(k_i + 1), font=heading_font, fill=(255, 255, 255))
+                    draw.rounded_rectangle(badge_box, radius=5, fill=badge_fill)
+                    draw.text((slide_x + 48, kp_y + 16), str(k_i + 1), font=heading_font, fill=(255, 255, 255))
 
                     # Point text
-                    wrapped_point = textwrap.shorten(point, width=64, placeholder="...")
-                    draw.text((slide_x + 88, kp_y + 18), wrapped_point, font=body_font, fill=(226, 232, 240))
+                    wrapped_point = textwrap.shorten(point, width=62, placeholder="...")
+                    draw.text((slide_x + 78, kp_y + 16), wrapped_point, font=body_font, fill=(226, 232, 240))
 
-                    kp_y += 74
+                    kp_y += 62
+
+                # Subject-Aware Code / Math / Formula / Process Card
+                code_or_math = getattr(segment, "visual_code_or_math", "") or getattr(segment, "visual_description", "")
+                if code_or_math:
+                    cm_rect = [slide_x + 28, kp_y, slide_x + slide_w - 28, kp_y + 56]
+                    draw.rounded_rectangle(cm_rect, radius=8, fill=(15, 23, 42), outline=(79, 70, 229), width=1)
+                    draw.text((slide_x + 40, kp_y + 6), f"⚙️ {v_type} SPECIFICATION:", font=small_font, fill=(129, 140, 248))
+                    cm_snippet = textwrap.shorten(str(code_or_math), width=65, placeholder="...")
+                    draw.text((slide_x + 40, kp_y + 26), cm_snippet, font=body_font, fill=(248, 250, 252))
 
                 # Analogy / Example Box at Bottom of Slide
                 if segment.example:
-                    ex_rect = [slide_x + 28, slide_y + slide_h - 100, slide_x + slide_w - 28, slide_y + slide_h - 20]
-                    draw.rounded_rectangle(ex_rect, radius=12, fill=(30, 27, 75) if not is_remediation else (69, 26, 3), outline=(129, 140, 248) if not is_remediation else (245, 158, 11), width=1)
-                    draw.text((slide_x + 44, slide_y + slide_h - 90), "💡 INTUITIVE REAL-WORLD ANALOGY", font=small_font, fill=(165, 180, 252) if not is_remediation else (252, 211, 77))
-                    ex_text = textwrap.shorten(segment.example, width=72, placeholder="...")
-                    draw.text((slide_x + 44, slide_y + slide_h - 66), ex_text, font=body_font, fill=(241, 245, 249))
+                    ex_rect = [slide_x + 28, slide_y + slide_h - 96, slide_x + slide_w - 28, slide_y + slide_h - 18]
+                    draw.rounded_rectangle(ex_rect, radius=10, fill=(30, 27, 75) if not is_remediation else (69, 26, 3), outline=(129, 140, 248) if not is_remediation else (245, 158, 11), width=1)
+                    draw.text((slide_x + 40, slide_y + slide_h - 86), "💡 INTUITIVE REAL-WORLD ANALOGY", font=small_font, fill=(165, 180, 252) if not is_remediation else (252, 211, 77))
+                    ex_text = textwrap.shorten(segment.example, width=70, placeholder="...")
+                    draw.text((slide_x + 40, slide_y + slide_h - 62), ex_text, font=body_font, fill=(241, 245, 249))
 
                 # --- BOTTOM BAR: SUBTITLE & TIME PROGRESS BAR ---
                 bottom_rect = [30, self.height - 145, self.width - 30, self.height - 35]

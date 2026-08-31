@@ -87,9 +87,9 @@ Create an adaptive remediation segment that bridges this conceptual gap."""
             explanation=res.get("explanation", f"Let's look at {original_segment.title} from another angle."),
             example=res.get("example", "Think of this mechanism as a streamlined sequence of handoffs."),
             key_points=res.get("key_points", [
-                "Clarifying the primary misconception",
+                f"Clarifying the misconception regarding {original_segment.title}",
                 "Understanding the core operational principle",
-                "Connecting cause and biochemical effect"
+                "Connecting key variables and causal relationships"
             ]),
             visual_diagram_type=res.get("visual_diagram_type", "comparison"),
             question=remed_q,

@@ -113,6 +113,24 @@ export default function FeedbackReport({ report, onStartNextTopic, onResetLesson
         </div>
       </div>
 
+      {/* Misconceptions Diagnosed & Remediated */}
+      {report.misconceptions && report.misconceptions.length > 0 && (
+        <div className="report-recs-card glass-panel" style={{ borderLeft: '4px solid #f59e0b' }}>
+          <div className="card-heading text-amber">
+            <AlertCircle size={20} />
+            <h3>Misconceptions Diagnosed & Remediated During Lesson</h3>
+          </div>
+          <ul className="recs-list">
+            {report.misconceptions.map((misc, i) => (
+              <li key={i} className="rec-item">
+                <span className="rec-num" style={{ background: '#78350f', color: '#fef3c7' }}>{i + 1}</span>
+                <span className="rec-text">{misc}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* Actionable Recommendations */}
       {report.recommendations && report.recommendations.length > 0 && (
         <div className="report-recs-card glass-panel">

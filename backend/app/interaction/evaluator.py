@@ -92,7 +92,7 @@ Evaluate the student's answer accurately."""
 
         misconception_explanation = result_dict.get("misconception_explanation", "")
         if not is_correct and not misconception_explanation:
-            misconception_explanation = "Student overlooked key biochemical mechanism."
+            misconception_explanation = f"Student's explanation diverged from the expected core relationship for '{segment.title}'."
 
         return EvaluationResult(
             is_correct=is_correct,

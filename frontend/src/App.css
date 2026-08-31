@@ -290,6 +290,13 @@
   color: var(--text-dim);
 }
 
+.sample-buttons-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .btn-sample-chip {
   padding: 6px 14px;
   border-radius: 20px;
@@ -297,6 +304,8 @@
   border: 1px solid rgba(99, 102, 241, 0.3);
   font-size: 12px;
   color: #c7d2fe;
+  cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .btn-sample-chip:hover {

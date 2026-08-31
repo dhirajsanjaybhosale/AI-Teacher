@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { HelpCircle, Send, CheckCircle2, AlertTriangle, ArrowRight, RotateCcw, Lightbulb } from 'lucide-react';
+import { HelpCircle, Send, CheckCircle2, AlertTriangle, ArrowRight, RotateCcw, Lightbulb, MessageSquarePlus, Sparkles, Volume2 } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { askTeacher, getFullMediaUrl } from '../api/client';
 
 export default function QuestionPrompt({
   question,
@@ -9,10 +10,19 @@ export default function QuestionPrompt({
   evaluationResult,
   onAdvanceNext,
   onPlayRemediation,
-  isLastSegment
+  isLastSegment,
+  lessonId,
+  segmentId,
+  language
 }) {
   const [typedAnswer, setTypedAnswer] = useState('');
   const [selectedOption, setSelectedOption] = useState(null);
+
+  // Follow-up Teacher Interaction state
+  const [isAskOpen, setIsAskOpen] = useState(false);
+  const [followupQuery, setFollowupQuery] = useState('');
+  const [isAskingTeacher, setIsAskingTeacher] = useState(false);
+  const [teacherResponse, setTeacherResponse] = useState(null);
 
   const handleSelectOption = (opt) => {
     setSelectedOption(opt);
@@ -22,10 +32,28 @@ export default function QuestionPrompt({
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!typedAnswer.trim()) return;
-
     onSubmitAnswer(typedAnswer);
+  };
 
-    // If answer is evaluated as correct later, confetti triggers
+  const handleAskTeacher = async (queryToUse) => {
+    const q = queryToUse || followupQuery;
+    if (!q || !q.trim() || !lessonId) return;
+
+    setIsAskingTeacher(true);
+    try {
+      const resp = await askTeacher({
+        lessonId,
+        segmentId,
+        userQuery: q,
+        language
+      });
+      setTeacherResponse(resp);
+    } catch (err) {
+      console.error("Error asking teacher:", err);
+      alert("Teacher assistant temporarily unavailable.");
+    } finally {
+      setIsAskingTeacher(false);
+    }
   };
 
   // Trigger confetti if evaluation is successful
@@ -38,9 +66,7 @@ export default function QuestionPrompt({
           origin: { y: 0.6 },
           colors: ['#6366f1', '#10b981', '#06b6d4', '#f59e0b']
         });
-      } catch (err) {
-        // Safe catch
-      }
+      } catch (err) {}
     }
   }, [evaluationResult]);
 
@@ -172,7 +198,6 @@ export default function QuestionPrompt({
                   type="button"
                   className="btn-secondary"
                   onClick={() => {
-                    // Reset to try typing again
                     setTypedAnswer('');
                     setSelectedOption(null);
                   }}
@@ -184,6 +209,100 @@ export default function QuestionPrompt({
           </div>
         </div>
       )}
+
+      {/* --- IN-LESSON ASK AI TEACHER INTERACTIVE PANEL --- */}
+      <div className="ask-teacher-dock" style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+          <button
+            type="button"
+            className="btn-secondary"
+            style={{ fontSize: '0.85rem', padding: '0.4rem 0.8rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            onClick={() => setIsAskOpen(!isAskOpen)}
+          >
+            <MessageSquarePlus size={16} className="text-indigo" />
+            <span>{isAskOpen ? 'Hide Teacher Clarification' : '💬 Ask AI Teacher a Follow-Up'}</span>
+          </button>
+          <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Live context-retained tutoring</span>
+        </div>
+
+        {isAskOpen && (
+          <div className="ask-teacher-body" style={{ background: 'rgba(15,23,42,0.6)', padding: '1rem', borderRadius: '10px', marginTop: '0.5rem' }}>
+            {/* Quick Chips */}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.75rem' }}>
+              {[
+                "Explain that again in simpler terms",
+                "Give me another real-world example",
+                "Explain this concept in Hindi",
+                "Why is this principle important?"
+              ].map((chip, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className="btn-sample-chip"
+                  style={{ fontSize: '0.75rem', padding: '0.3rem 0.6rem' }}
+                  onClick={() => {
+                    setFollowupQuery(chip);
+                    handleAskTeacher(chip);
+                  }}
+                  disabled={isAskingTeacher}
+                >
+                  <Sparkles size={12} style={{ marginRight: '4px' }} />
+                  {chip}
+                </button>
+              ))}
+            </div>
+
+            {/* Custom Input */}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <input
+                type="text"
+                className="text-input"
+                style={{ fontSize: '0.85rem', padding: '0.5rem 0.75rem' }}
+                placeholder="Ask Dr. Nova any follow-up question about this segment..."
+                value={followupQuery}
+                onChange={(e) => setFollowupQuery(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAskTeacher(); }}
+                disabled={isAskingTeacher}
+              />
+              <button
+                type="button"
+                className="btn-primary-cta"
+                style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                onClick={() => handleAskTeacher()}
+                disabled={isAskingTeacher || !followupQuery.trim()}
+              >
+                {isAskingTeacher ? 'Thinking...' : 'Ask'}
+              </button>
+            </div>
+
+            {/* Teacher's Live Answer */}
+            {teacherResponse && (
+              <div style={{ marginTop: '0.75rem', padding: '0.85rem', background: 'rgba(30,41,59,0.7)', borderRadius: '8px', borderLeft: '3px solid #6366f1' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.35rem' }}>
+                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#818cf8' }}>Dr. Nova (AI Teacher):</span>
+                  {teacherResponse.audio_url && (
+                    <audio
+                      src={getFullMediaUrl(teacherResponse.audio_url)}
+                      controls
+                      autoPlay
+                      style={{ height: '24px', maxWidth: '180px' }}
+                    />
+                  )}
+                </div>
+                <p style={{ fontSize: '0.85rem', color: '#f1f5f9', margin: '0 0 0.35rem 0', lineHeight: 1.4 }}>
+                  {teacherResponse.response_text}
+                </p>
+                {teacherResponse.example && (
+                  <p style={{ fontSize: '0.8rem', color: '#cbd5e1', fontStyle: 'italic', margin: 0 }}>
+                    💡 <strong>Example:</strong> {teacherResponse.example}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
+

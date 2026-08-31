@@ -17,7 +17,9 @@ class Segment(BaseModel):
     explanation: str = Field(..., description="Clear, engaging spoken narration explanation (in target language)")
     example: Optional[str] = Field(default="", description="Real-world intuitive analogy or example")
     key_points: List[str] = Field(default_factory=list, description="3-4 bullet points to show on the visual slide")
-    visual_diagram_type: Optional[str] = Field(default="flowchart", description="diagram/icon/concept visual type")
+    visual_diagram_type: Optional[str] = Field(default="flowchart", description="code/equation/comparison/flowchart/process/timeline/diagram")
+    visual_description: Optional[str] = Field(default="", description="Description of the supporting visual diagram or layout")
+    visual_code_or_math: Optional[str] = Field(default="", description="Code snippet or mathematical formula for visual render")
     question: Question = Field(..., description="Interactive check question embedded in this segment")
     video_url: Optional[str] = Field(default=None, description="URL or relative path to the generated segment video")
     is_remediation: bool = Field(default=False, description="Flag indicating if this is an adaptive re-explanation segment")
@@ -26,10 +28,13 @@ class Segment(BaseModel):
 class LessonPlan(BaseModel):
     lesson_id: str = Field(..., description="Unique ID for this generated lesson session")
     title: str = Field(..., description="Main title of the lesson")
+    subject: Optional[str] = Field(default="General", description="Subject area: Physics, Computer Science, Biology, Mathematics, etc.")
     description: str = Field(..., description="Short overview of what the learner will master")
+    learning_objectives: List[str] = Field(default_factory=list, description="Target outcomes of the lesson")
     target_level: str = Field(default="beginner", description="beginner, intermediate, or advanced")
     target_language: str = Field(default="en", description="Language code: en (English) or hi (Hindi)")
     estimated_minutes: int = Field(default=10, description="Total time budget in minutes")
+    goal: Optional[str] = Field(default="understand", description="Learning goal: understand, exam, interview, practice")
     segments: List[Segment] = Field(..., description="Ordered list of instructional segments")
     source_type: str = Field(default="topic", description="'pdf' or 'topic'")
     source_name: Optional[str] = Field(default="", description="Filename or topic query")
@@ -38,8 +43,10 @@ class LessonPlan(BaseModel):
 class LearnerPreferences(BaseModel):
     topic: Optional[str] = Field(default="", description="Typed topic string or chapter name")
     level: str = Field(default="beginner", description="beginner, intermediate, or advanced")
-    time_minutes: int = Field(default=10, description="Time budget in minutes (5, 10, 15, 30)")
+    time_minutes: int = Field(default=10, description="Time budget in minutes (5, 10, 20, 30, 60)")
     language: str = Field(default="en", description="Target language: en (English) or hi (Hindi)")
+    goal: Optional[str] = Field(default="understand", description="understand, exam, interview, practice")
+    teaching_style: Optional[str] = Field(default="intuitive", description="intuitive, rigorous, visual, analogy")
 
 
 class EvaluationResult(BaseModel):
@@ -48,6 +55,8 @@ class EvaluationResult(BaseModel):
     feedback: str = Field(..., description="Encouraging feedback explaining what was right or missing")
     misconception_detected: bool = Field(default=False, description="True if a specific conceptual flaw was found")
     misconception_explanation: Optional[str] = Field(default="", description="Identified misconception details")
+    missing_concept: Optional[str] = Field(default="", description="Key underlying concept missing from student answer")
+    confidence: Optional[float] = Field(default=0.95, description="Confidence in evaluation score")
     adaptation_needed: bool = Field(default=False, description="Whether to trigger a remediation video")
     adapted_segment: Optional[Segment] = Field(default=None, description="New customized explanation segment if adapted")
 
@@ -57,6 +66,21 @@ class AnswerSubmission(BaseModel):
     segment_id: str
     user_answer: str
     language: str = "en"
+
+
+class FollowUpRequest(BaseModel):
+    lesson_id: str
+    segment_id: Optional[str] = None
+    user_query: str
+    language: Optional[str] = "en"
+
+
+class FollowUpResponse(BaseModel):
+    lesson_id: str
+    segment_id: Optional[str] = None
+    response_text: str
+    example: Optional[str] = ""
+    audio_url: Optional[str] = None
 
 
 class QuizQuestion(BaseModel):
@@ -95,6 +119,8 @@ class FeedbackReport(BaseModel):
     percentage: float
     concepts_understood: List[str]
     weak_concepts: List[str]
+    misconceptions: List[str] = Field(default_factory=list, description="Specific mental misconceptions identified and remediated")
     recommendations: List[str]
     next_recommended_topic: str
     summary_feedback: str
+

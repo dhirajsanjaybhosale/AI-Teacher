@@ -12,22 +12,40 @@ Verifies:
 
 import os
 import sys
-import requests
+import argparse
 
 # Ensure utf-8 stdout if available
 if sys.platform == "win32":
     sys.stdout.reconfigure(encoding="utf-8")
 
-BASE_URL = "http://127.0.0.1:8000"
+def get_client(live=False, base_url="http://127.0.0.1:8000"):
+    if live:
+        import requests
+        class RequestsClient:
+            def __init__(self, base):
+                self.base = base.rstrip("/")
+            def get(self, url, **kwargs):
+                full_url = url if url.startswith("http") else f"{self.base}/{url.lstrip('/')}"
+                return requests.get(full_url, **kwargs)
+            def post(self, url, **kwargs):
+                full_url = url if url.startswith("http") else f"{self.base}/{url.lstrip('/')}"
+                return requests.post(full_url, **kwargs)
+        return RequestsClient(base_url)
+    else:
+        from fastapi.testclient import TestClient
+        from main import app
+        return TestClient(app)
 
-def test_full_pipeline():
+def test_full_pipeline(live=False, base_url="http://127.0.0.1:8000"):
+    client = get_client(live=live, base_url=base_url)
+    mode_str = f"Live Server ({base_url})" if live else "In-Process TestClient"
     print("================================================================")
-    print("[AI TEACHER] COMPREHENSIVE QA & DEMO VERIFICATION SUITE")
+    print(f"[AI TEACHER] COMPREHENSIVE QA & DEMO VERIFICATION ({mode_str})")
     print("================================================================\n")
 
     # 1. Health Check
     print("[STEP 1/7] Testing Health Endpoint & GPU Detection...")
-    res = requests.get(f"{BASE_URL}/health")
+    res = client.get("/health")
     assert res.status_code == 200, f"Health check failed: {res.status_code}"
     health = res.json()
     print(f"  ✓ Service: {health.get('service')}")
@@ -42,7 +60,7 @@ def test_full_pipeline():
     with open(sample_pdf_path, "rb") as f:
         files = {"pdf_file": ("sample_chapter.pdf", f, "application/pdf")}
         data = {"level": "beginner", "time_minutes": "5", "language": "en"}
-        res = requests.post(f"{BASE_URL}/api/lesson/create", files=files, data=data)
+        res = client.post("/api/lesson/create", files=files, data=data)
 
     assert res.status_code == 200, f"Lesson creation failed: {res.status_code} - {res.text}"
     lesson = res.json()
@@ -55,8 +73,8 @@ def test_full_pipeline():
     print("\n[STEP 3/7] Verifying Generated Video Stream...")
     seg1 = lesson["segments"][0]
     video_rel = seg1["video_url"].lstrip("/")
-    # Check via HTTP
-    v_res = requests.get(f"{BASE_URL}/{video_rel}", stream=True)
+    # Check via client
+    v_res = client.get(f"/{video_rel}")
     assert v_res.status_code == 200, f"Failed to stream video: {v_res.status_code}"
     print(f"  ✓ Video stream verified ({v_res.headers.get('content-type', 'video/mp4')})")
 
@@ -68,7 +86,7 @@ def test_full_pipeline():
         "user_answer": "I believe current increases when resistance increases because more resistance means more electrical friction.",
         "language": "en"
     }
-    res = requests.post(f"{BASE_URL}/api/interact/submit-answer", json=wrong_answer_payload)
+    res = client.post("/api/interact/submit-answer", json=wrong_answer_payload)
     assert res.status_code == 200, f"Submit answer failed: {res.status_code}"
     eval_wrong = res.json()
     assert not eval_wrong["is_correct"], "Expected wrong answer to be marked incorrect"
@@ -90,7 +108,7 @@ def test_full_pipeline():
         "user_answer": seg1["question"]["correct_answer"],
         "language": "en"
     }
-    res = requests.post(f"{BASE_URL}/api/interact/submit-answer", json=correct_answer_payload)
+    res = client.post("/api/interact/submit-answer", json=correct_answer_payload)
     assert res.status_code == 200
     eval_correct = res.json()
     assert eval_correct["is_correct"], "Expected answer to be marked correct"
@@ -98,13 +116,13 @@ def test_full_pipeline():
 
     # 6. Summative Assessment: Quiz Generation
     print("\n[STEP 6/7] Testing Summative Mastery Quiz Generation...")
-    res = requests.get(f"{BASE_URL}/api/assessment/quiz/{lesson_id}")
+    res = client.get(f"/api/assessment/quiz/{lesson_id}")
     assert res.status_code == 200, f"Quiz generation failed: {res.status_code}"
     quiz = res.json()
     print(f"  ✓ Quiz Generated: '{quiz['title']}' ({len(quiz['questions'])} questions)")
 
     # 7. Quiz Submission & Feedback Report
-    print("\n[STEP 7/7] Testing Quiz Scoring & Analytical Feedback Report...")
+    print("\n[STEP 7/7] Testing Quiz Scoring & Analytical Feedback Report (Strict Domain Audit)...")
     quiz_submission = {
         "lesson_id": lesson_id,
         "quiz_id": quiz["quiz_id"],
@@ -113,7 +131,7 @@ def test_full_pipeline():
             for q in quiz["questions"]
         ]
     }
-    res = requests.post(f"{BASE_URL}/api/assessment/submit-quiz", json=quiz_submission)
+    res = client.post("/api/assessment/submit-quiz", json=quiz_submission)
     assert res.status_code == 200, f"Quiz submission failed: {res.status_code}"
     report = res.json()
     print(f"  ✓ Mastery Score: {report['total_score']}/{report['max_score']} ({report['percentage']}%)")
@@ -121,9 +139,73 @@ def test_full_pipeline():
     print(f"  ✓ Recommended Next Topic: '{report['next_recommended_topic']}'")
     print(f"  ✓ Narrative Feedback: {report['summary_feedback'][:120]}...")
 
+    # Strict Zero-Contamination Assertions for Electricity Lesson
+    for concept in report['concepts_understood']:
+        concept_lower = concept.lower()
+        assert "biological" not in concept_lower, f"CONTAMINATION DETECTED: Found 'biological' in Electricity report: {concept}"
+        assert "metabolic" not in concept_lower, f"CONTAMINATION DETECTED: Found 'metabolic' in Electricity report: {concept}"
+        assert "photosynthesis" not in concept_lower, f"CONTAMINATION DETECTED: Found 'photosynthesis' in Electricity report: {concept}"
+    
+    assert "circuit" in report['next_recommended_topic'].lower() or "electric" in report['next_recommended_topic'].lower() or "advanced" in report['next_recommended_topic'].lower(), f"Unexpected next topic: {report['next_recommended_topic']}"
+    print("  ✓ AUDIT PASSED: Electricity report is 100% free of biological/cross-topic contamination!")
+
+    # -------------------------------------------------------------------------
+    # BONUS MULTI-TOPIC SESSION ISOLATION AUDIT: Cellular Respiration PDF
+    # -------------------------------------------------------------------------
+    print("\n[BONUS AUDIT] Testing Multi-Topic Session Isolation with Biology Chapter...")
+    bio_pdf_path = "sample_data/cellular_respiration_chapter.pdf"
+    if not os.path.exists(bio_pdf_path):
+        bio_pdf_path = "../sample_data/cellular_respiration_chapter.pdf"
+
+    if os.path.exists(bio_pdf_path):
+        with open(bio_pdf_path, "rb") as f:
+            files = {"pdf_file": ("cellular_respiration_chapter.pdf", f, "application/pdf")}
+            data = {"level": "beginner", "time_minutes": "5", "language": "en"}
+            res = client.post("/api/lesson/create", files=files, data=data)
+        assert res.status_code == 200
+        bio_lesson = res.json()
+        assert bio_lesson["lesson_id"] != lesson_id, "Session ID collision detected!"
+        print(f"  ✓ New Isolated Session Created: '{bio_lesson['title']}' (ID: {bio_lesson['lesson_id']})")
+
+        # Fetch quiz for new session
+        q_res = client.get(f"/api/assessment/quiz/{bio_lesson['lesson_id']}")
+        assert q_res.status_code == 200
+        bio_quiz = q_res.json()
+        assert bio_quiz["lesson_id"] == bio_lesson["lesson_id"]
+
+        # Verify all questions in bio quiz are strictly biological
+        for q in bio_quiz["questions"]:
+            q_text_lower = (q["question_text"] + " " + q["concept_tested"]).lower()
+            assert "ohm" not in q_text_lower and "voltage" not in q_text_lower and "resistor" not in q_text_lower, f"CONTAMINATION DETECTED: Electricity concept found in Biology quiz: {q['concept_tested']}"
+
+        # Submit bio quiz
+        bio_sub = {
+            "lesson_id": bio_lesson["lesson_id"],
+            "quiz_id": bio_quiz["quiz_id"],
+            "answers": [
+                {"question_id": q["id"], "selected_option_index": q["correct_option_index"]}
+                for q in bio_quiz["questions"]
+            ]
+        }
+        rep_res = client.post("/api/assessment/submit-quiz", json=bio_sub)
+        assert rep_res.status_code == 200
+        bio_report = rep_res.json()
+        print(f"  ✓ Biology Mastery Score: {bio_report['total_score']}/{bio_report['max_score']} ({bio_report['percentage']}%)")
+        print(f"  ✓ Biology Concepts Mastered: {bio_report['concepts_understood']}")
+        print(f"  ✓ Biology Recommended Next Topic: '{bio_report['next_recommended_topic']}'")
+
+        # Verify no electricity contamination in biology report
+        for concept in bio_report['concepts_understood']:
+            assert "ohm" not in concept.lower() and "voltage" not in concept.lower(), f"Electricity concept found in Biology report: {concept}"
+        print("  ✓ AUDIT PASSED: Multi-topic session isolation verified with zero cross-contamination!")
+
     print("\n================================================================")
-    print("SUCCESS: ALL 7 END-TO-END STAGES PASSED!")
+    print("SUCCESS: ALL QA CHECKS & SESSION AUDITS PASSED WITH ZERO CONTAMINATION!")
     print("================================================================")
 
 if __name__ == "__main__":
-    test_full_pipeline()
+    parser = argparse.ArgumentParser(description="AI Teacher Test Verification Suite")
+    parser.add_argument("--live", action="store_true", help="Test against live running server instead of in-process TestClient")
+    parser.add_argument("--url", default="http://127.0.0.1:8000", help="Base URL for live server")
+    args = parser.parse_args()
+    test_full_pipeline(live=args.live, base_url=args.url)

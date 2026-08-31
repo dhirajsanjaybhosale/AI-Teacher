@@ -14,7 +14,7 @@ export const getFullMediaUrl = (relativeUrl) => {
   return `${API_BASE}${relativeUrl.startsWith('/') ? '' : '/'}${relativeUrl}`;
 };
 
-export const createLesson = async ({ pdfFile, topic, level, timeMinutes, language }) => {
+export const createLesson = async ({ pdfFile, topic, level, timeMinutes, goal, language }) => {
   const formData = new FormData();
   if (pdfFile) {
     formData.append('pdf_file', pdfFile);
@@ -24,6 +24,7 @@ export const createLesson = async ({ pdfFile, topic, level, timeMinutes, languag
   }
   formData.append('level', level || 'beginner');
   formData.append('time_minutes', timeMinutes || 10);
+  formData.append('goal', goal || 'understand');
   formData.append('language', language || 'en');
 
   const res = await api.post('/api/lesson/create', formData, {
@@ -50,6 +51,16 @@ export const submitAnswer = async ({ lessonId, segmentId, userAnswer, language }
     lesson_id: lessonId,
     segment_id: segmentId,
     user_answer: userAnswer,
+    language: language || 'en',
+  });
+  return res.data;
+};
+
+export const askTeacher = async ({ lessonId, segmentId, userQuery, language }) => {
+  const res = await api.post('/api/interact/ask-teacher', {
+    lesson_id: lessonId,
+    segment_id: segmentId,
+    user_query: userQuery,
     language: language || 'en',
   });
   return res.data;
