@@ -14,7 +14,7 @@ export const getFullMediaUrl = (relativeUrl) => {
   return `${API_BASE}${relativeUrl.startsWith('/') ? '' : '/'}${relativeUrl}`;
 };
 
-export const createLesson = async ({ pdfFile, topic, level, timeMinutes, goal, language }) => {
+export const createLesson = async ({ pdfFile, topic, level, timeMinutes, goal, language, forceWebSearch }) => {
   const formData = new FormData();
   if (pdfFile) {
     formData.append('pdf_file', pdfFile);
@@ -26,6 +26,9 @@ export const createLesson = async ({ pdfFile, topic, level, timeMinutes, goal, l
   formData.append('time_minutes', timeMinutes || 10);
   formData.append('goal', goal || 'understand');
   formData.append('language', language || 'en');
+  if (forceWebSearch) {
+    formData.append('force_web_search', 'true');
+  }
 
   const res = await api.post('/api/lesson/create', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

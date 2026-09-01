@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Award, CheckCircle, AlertCircle, Sparkles, ArrowRight, RotateCcw, BookOpen, Target, Compass } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
-export default function FeedbackReport({ report, onStartNextTopic, onResetLesson }) {
+export default function FeedbackReport({ report, sources, sourceRoute, onStartNextTopic, onResetLesson }) {
   const pct = report.percentage || 0;
   const isHighMastery = pct >= 75;
 
@@ -143,6 +143,42 @@ export default function FeedbackReport({ report, onStartNextTopic, onResetLesson
               <li key={i} className="rec-item">
                 <span className="rec-num">{i + 1}</span>
                 <span className="rec-text">{rec}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Verified Grounded Sources */}
+      {sources && sources.length > 0 && (
+        <div className="report-recs-card glass-panel" style={{ borderLeft: '4px solid #06b6d4' }}>
+          <div className="card-heading text-cyan">
+            <BookOpen size={20} />
+            <h3>Grounded Knowledge Sources ({sourceRoute === 'external_web' ? 'Live Web Retrieval' : 'Document Ingestion'})</h3>
+          </div>
+          <ul className="recs-list">
+            {sources.map((s, i) => (
+              <li key={i} className="rec-item" style={{ alignItems: 'flex-start' }}>
+                <span className="rec-num" style={{ background: '#0e7490', color: '#cffafe' }}>{i + 1}</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  {s.url ? (
+                    <a
+                      href={s.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#38bdf8', fontWeight: '600', textDecoration: 'none' }}
+                    >
+                      🔗 {s.title} ({s.source})
+                    </a>
+                  ) : (
+                    <strong style={{ color: '#cbd5e1' }}>📄 {s.title} ({s.source})</strong>
+                  )}
+                  {s.snippet && (
+                    <p style={{ margin: 0, fontSize: '0.8rem', color: '#94a3b8' }}>
+                      "{s.snippet.length > 160 ? s.snippet.slice(0, 160) + '...' : s.snippet}"
+                    </p>
+                  )}
+                </div>
               </li>
             ))}
           </ul>

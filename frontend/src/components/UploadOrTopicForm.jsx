@@ -1,11 +1,17 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, Sparkles, Clock, Layers, Globe, Check, AlertCircle, ArrowRight } from 'lucide-react';
+import { Upload, FileText, Sparkles, Clock, Layers, Globe, Search, ArrowRight, BookOpen, Cpu, ShieldCheck } from 'lucide-react';
 
 const PRESET_TOPICS = [
-  { title: "Cellular Respiration & ATP Synthase", category: "Biology" },
-  { title: "Quantum Superposition & Qubits", category: "Physics" },
-  { title: "Neural Networks & Backpropagation", category: "AI & ML" },
-  { title: "Photosynthesis & Solar Energy Conversion", category: "Biochemistry" }
+  { title: "What is photosynthesis?", category: "Biology", query: "What is photosynthesis?" },
+  { title: "Explain recursion with an example", category: "Programming", query: "Explain recursion with an example." },
+  { title: "What is blockchain?", category: "Cryptography", query: "What is blockchain?" },
+  { title: "What are the latest developments in AI agents?", category: "Current Tech / Web", query: "What are the latest developments in AI agents?" },
+  { title: "Explain Newton's Second Law", category: "Physics", query: "Explain Newton's Second Law." },
+  { title: "Explain TCP vs UDP", category: "Networking", query: "Explain TCP vs UDP." },
+  { title: "Why is the sky blue?", category: "Optics / Physics", query: "Why is the sky blue?" },
+  { title: "Explain photosynthesis in Hindi", category: "Hindi (हिंदी)", query: "Explain photosynthesis in Hindi." },
+  { title: "Teach me Python from beginner level", category: "Programming", query: "Teach me Python from beginner level." },
+  { title: "Explain DBMS Normalization", category: "Database", query: "Explain DBMS normalization." }
 ];
 
 export default function UploadOrTopicForm({ onSubmit, isLoading }) {
@@ -13,9 +19,10 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
   const [pdfFile, setPdfFile] = useState(null);
   const [topicText, setTopicText] = useState('');
   const [level, setLevel] = useState('beginner');
-  const [timeMinutes, setTimeMinutes] = useState(20);
+  const [timeMinutes, setTimeMinutes] = useState(10);
   const [goal, setGoal] = useState('understand');
   const [language, setLanguage] = useState('en');
+  const [forceWebSearch, setForceWebSearch] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -65,7 +72,7 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
       return;
     }
     if (activeTab === 'topic' && !topicText.trim()) {
-      alert("Please enter a topic to teach.");
+      alert("Please enter any topic, question, or concept to teach.");
       return;
     }
 
@@ -75,7 +82,8 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
       level,
       timeMinutes,
       goal,
-      language
+      language,
+      forceWebSearch
     });
   };
 
@@ -90,9 +98,22 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
         The Future of <span className="text-gradient">Personalized Education</span>
       </h1>
       <p className="hero-description">
-        Type ANY educational topic or upload a textbook chapter. Your AI Teacher plans a tailored curriculum,
-        narrates with synchronized visual slides & avatar, and adapts re-explanations to your exact misconceptions.
+        Enter <strong>ANY topic, concept, question, or learning request</strong>. Your AI Teacher dynamically routes knowledge,
+        creates tailored curricula, speaks with synchronized visual slides & avatar, and adapts re-explanations to your exact misconceptions.
       </p>
+
+      {/* Dynamic Knowledge Router Status Strip */}
+      <div className="router-status-strip">
+        <div className="router-tag">
+          <ShieldCheck size={14} className="text-cyan" />
+          <span>Knowledge Router:</span>
+        </div>
+        <div className="router-item">📄 PDF RAG Vector Ingestion</div>
+        <div className="router-dot">•</div>
+        <div className="router-item">🌐 Live Free Web Retrieval (DuckDuckGo/Wikipedia)</div>
+        <div className="router-dot">•</div>
+        <div className="router-item">🧠 Multi-Domain LLM Engine</div>
+      </div>
 
       <form className="form-card glass-panel glass-panel-glow" onSubmit={handleSubmit}>
         {/* Source Mode Tabs */}
@@ -103,7 +124,7 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
             onClick={() => setActiveTab('topic')}
           >
             <Sparkles size={18} />
-            <span>Type Any Educational Topic</span>
+            <span>Type Any Educational Topic / Question</span>
           </button>
           <button
             type="button"
@@ -119,32 +140,50 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
         {activeTab === 'topic' && (
           <div className="tab-section">
             <div className="input-group">
-              <label className="input-label">What concept or topic would you like to master?</label>
+              <label className="input-label">What concept or educational question would you like to master?</label>
               <input
                 type="text"
                 className="text-input"
-                placeholder="e.g., Teach me Machine Learning from beginner level, Explain DBMS Normalization, Newton's Laws..."
+                placeholder="e.g., What is photosynthesis? Explain TCP vs UDP, What are the latest developments in AI agents?, Teach me Python from beginner level..."
                 value={topicText}
                 onChange={(e) => setTopicText(e.target.value)}
               />
             </div>
 
+            {/* Optional Web Search Toggle */}
+            <div className="web-search-toggle-bar">
+              <label className="toggle-label" style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.85rem', color: '#94a3b8' }}>
+                <input
+                  type="checkbox"
+                  checked={forceWebSearch}
+                  onChange={(e) => setForceWebSearch(e.target.checked)}
+                  style={{ cursor: 'pointer', accentColor: '#6366f1' }}
+                />
+                <Search size={14} className="text-indigo" />
+                <span>Force Live Web Grounding (DuckDuckGo / Wikipedia / ArXiv)</span>
+              </label>
+              <span className="toggle-hint" style={{ fontSize: '0.75rem', color: '#64748b' }}>
+                (Automatically enabled for temporal queries containing 'latest', 'recent', '2026', etc.)
+              </span>
+            </div>
+
             <div className="presets-wrapper">
-              <span className="presets-label">⚡ Multi-Domain Topic Suggestions:</span>
+              <span className="presets-label">⚡ Multi-Domain Topic & Question Examples:</span>
               <div className="preset-chips">
-                {[
-                  { title: "Machine Learning & Neural Networks", category: "AI & ML" },
-                  { title: "DBMS Normalization & Relational Design", category: "Computer Science" },
-                  { title: "Newton's Laws of Motion & Dynamics", category: "Physics" },
-                  { title: "Introduction to Electricity & Ohm's Law", category: "Circuits" },
-                  { title: "Cellular Respiration & ATP Synthase", category: "Biology" },
-                  { title: "Quantum Superposition & Qubits", category: "Quantum" }
-                ].map((p, i) => (
+                {PRESET_TOPICS.map((p, i) => (
                   <button
                     key={i}
                     type="button"
                     className="chip-btn"
-                    onClick={() => setTopicText(p.title)}
+                    onClick={() => {
+                      setTopicText(p.query);
+                      if (p.category.includes("Web")) {
+                        setForceWebSearch(true);
+                      }
+                      if (p.category.includes("Hindi")) {
+                        setLanguage("hi");
+                      }
+                    }}
                   >
                     <span>{p.title}</span>
                     <span className="chip-cat">{p.category}</span>

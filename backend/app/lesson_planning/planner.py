@@ -1,12 +1,12 @@
 import uuid
 from typing import Optional, Dict, Any, List
-from .schemas import LessonPlan, Segment, Question, LearnerPreferences
+from .schemas import LessonPlan, Segment, Question, LearnerPreferences, SourceMetadata
 from app.llm.llm_service import llm_service
 
 
 class LessonPlanner:
     """
-    Synthesizes structured, time-budgeted pedagogical curricula from RAG context or arbitrary user topics.
+    Synthesizes structured, time-budgeted pedagogical curricula from RAG context, web sources, or arbitrary user topics.
     Outputs rich schemas compatible with voice narration, subject-aware visual slide generation, and formative checks.
     """
 
@@ -17,7 +17,9 @@ class LessonPlanner:
         self,
         preferences: LearnerPreferences,
         retrieved_context: Optional[str] = None,
-        source_name: Optional[str] = None
+        source_name: Optional[str] = None,
+        source_route: Optional[str] = "llm_knowledge",
+        sources: Optional[List[SourceMetadata]] = None
     ) -> LessonPlan:
         """
         Creates a full structured lesson plan tailored to any educational subject.
@@ -232,8 +234,10 @@ Ensure high conceptual accuracy, pedagogical clarity, subject-appropriate visual
             estimated_minutes=time_mins,
             goal=goal,
             segments=sanitized_segments,
-            source_type=response_dict["source_type"],
-            source_name=response_dict["source_name"]
+            source_type=response_dict.get("source_type", "topic"),
+            source_name=response_dict.get("source_name", source_name or preferences.topic),
+            source_route=source_route or "llm_knowledge",
+            sources=sources or []
         )
 
 

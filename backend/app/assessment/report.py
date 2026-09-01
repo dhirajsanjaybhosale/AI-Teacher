@@ -1,5 +1,5 @@
 import re
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from app.lesson_planning.schemas import LessonPlan, Quiz, QuizSubmission, FeedbackReport
 from .scorer import quiz_scorer
 from app.llm.llm_service import llm_service

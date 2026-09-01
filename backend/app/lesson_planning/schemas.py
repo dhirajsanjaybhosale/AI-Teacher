@@ -25,6 +25,14 @@ class Segment(BaseModel):
     is_remediation: bool = Field(default=False, description="Flag indicating if this is an adaptive re-explanation segment")
 
 
+class SourceMetadata(BaseModel):
+    title: str = Field(..., description="Title of the retrieved source")
+    url: Optional[str] = Field(default="", description="Verified URL of the source")
+    source: str = Field(..., description="Source name, domain, or provider (e.g. Wikipedia, DuckDuckGo, PDF Document)")
+    retrieved_at: Optional[str] = Field(default="", description="ISO timestamp of when the source was retrieved")
+    snippet: Optional[str] = Field(default="", description="Relevant excerpt extracted from the source")
+
+
 class LessonPlan(BaseModel):
     lesson_id: str = Field(..., description="Unique ID for this generated lesson session")
     title: str = Field(..., description="Main title of the lesson")
@@ -36,8 +44,10 @@ class LessonPlan(BaseModel):
     estimated_minutes: int = Field(default=10, description="Total time budget in minutes")
     goal: Optional[str] = Field(default="understand", description="Learning goal: understand, exam, interview, practice")
     segments: List[Segment] = Field(..., description="Ordered list of instructional segments")
-    source_type: str = Field(default="topic", description="'pdf' or 'topic'")
+    source_type: str = Field(default="topic", description="'pdf', 'topic', or 'external_web'")
     source_name: Optional[str] = Field(default="", description="Filename or topic query")
+    source_route: Optional[str] = Field(default="llm_knowledge", description="'pdf_rag', 'external_web', 'llm_knowledge', or 'hybrid'")
+    sources: List[SourceMetadata] = Field(default_factory=list, description="List of verified grounded sources")
 
 
 class LearnerPreferences(BaseModel):
@@ -47,6 +57,7 @@ class LearnerPreferences(BaseModel):
     language: str = Field(default="en", description="Target language: en (English) or hi (Hindi)")
     goal: Optional[str] = Field(default="understand", description="understand, exam, interview, practice")
     teaching_style: Optional[str] = Field(default="intuitive", description="intuitive, rigorous, visual, analogy")
+    force_web_search: Optional[bool] = Field(default=False, description="Whether to explicitly force external web retrieval")
 
 
 class EvaluationResult(BaseModel):

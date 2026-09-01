@@ -84,21 +84,17 @@ class TTSEngine:
         success = False
         if _EDGE_TTS_AVAILABLE:
             try:
-                # Run async edge-tts in event loop
-                try:
-                    loop = asyncio.get_event_loop()
-                    if loop.is_running():
-                        # Create new event loop in thread if existing loop is busy
-                        import concurrent.futures
-                        with concurrent.futures.ThreadPoolExecutor() as pool:
-                            pool.submit(asyncio.run, self._generate_edge_tts(text, voice, raw_audio_path)).result()
-                    else:
-                        loop.run_until_complete(self._generate_edge_tts(text, voice, raw_audio_path))
-                except RuntimeError:
-                    asyncio.run(self._generate_edge_tts(text, voice, raw_audio_path))
+                import concurrent.futures
+                async def _timed_gen():
+                    await asyncio.wait_for(self._generate_edge_tts(text, voice, raw_audio_path), timeout=6.0)
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                    future = pool.submit(asyncio.run, _timed_gen())
+                    future.result(timeout=7.0)
+
                 success = os.path.exists(raw_audio_path) and os.path.getsize(raw_audio_path) > 0
             except Exception as e:
-                print(f"[TTSEngine] Edge-TTS error: {e}. Attempting local fallback.")
+                print(f"[TTSEngine] Edge-TTS error or timeout: {e}. Attempting local fallback.")
                 success = False
 
         if not success and _PYTTSX3_AVAILABLE:
