@@ -136,46 +136,53 @@ class OfflineProvider(LLMProvider):
 
     def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
         p_lower = prompt.lower()
+        is_hinglish = (
+            "hinglish" in p_lower or '"language": "hinglish"' in p_lower or
+            'target_language: hinglish' in p_lower or '"language": "hinglish"' in (system_prompt or "").lower() or
+            'in hinglish' in p_lower or 'hinglish mein' in p_lower
+        )
         is_hindi = (
-            "hindi" in p_lower or '"language": "hi"' in p_lower or
-            'target_language: hi' in p_lower or 'हिंदी' in prompt or
-            'in natural hindi' in p_lower or '"language": "hi"' in (system_prompt or "").lower()
+            not is_hinglish and (
+                "hindi" in p_lower or '"language": "hi"' in p_lower or
+                'target_language: hi' in p_lower or 'हिंदी' in prompt or
+                'in natural hindi' in p_lower or '"language": "hi"' in (system_prompt or "").lower()
+            )
         )
 
         # -------------------------------------------------------------
         # 1. FOLLOW-UP INTERACTION / ASK TEACHER REQUEST
         # -------------------------------------------------------------
         if "follow-up request" in p_lower or "ask teacher" in p_lower or "user query:" in p_lower or "student inquiry:" in p_lower:
-            return self._handle_followup(prompt, is_hindi)
+            return self._handle_followup(prompt, is_hindi, is_hinglish)
 
         # -------------------------------------------------------------
         # 2. SUMMATIVE QUIZ GENERATION REQUEST
         # -------------------------------------------------------------
         if "quiz request" in p_lower or ("quiz" in p_lower and "mastery" in p_lower and "questions" in p_lower):
-            return self._handle_quiz(prompt, is_hindi)
+            return self._handle_quiz(prompt, is_hindi, is_hinglish)
 
         # -------------------------------------------------------------
         # 3. FORMATIVE ANSWER EVALUATION REQUEST
         # -------------------------------------------------------------
         if "evaluate the student" in p_lower or "student's submitted answer" in p_lower:
-            return self._handle_evaluation(prompt, is_hindi)
+            return self._handle_evaluation(prompt, is_hindi, is_hinglish)
 
         # -------------------------------------------------------------
         # 4. ADAPTIVE REMEDIATION RE-EXPLANATION REQUEST
         # -------------------------------------------------------------
         if "remediation" in p_lower or "create an adaptive remediation" in p_lower or "diagnosed misconception" in p_lower:
-            return self._handle_remediation(prompt, is_hindi)
+            return self._handle_remediation(prompt, is_hindi, is_hinglish)
 
         # -------------------------------------------------------------
         # 5. FINAL REPORT GENERATION REQUEST
         # -------------------------------------------------------------
         if "report request" in p_lower or "final feedback report" in p_lower:
-            return self._handle_report(prompt, is_hindi)
+            return self._handle_report(prompt, is_hindi, is_hinglish)
 
         # -------------------------------------------------------------
         # 6. LESSON PLANNING / CURRICULUM SYNTHESIS REQUEST
         # -------------------------------------------------------------
-        return self._handle_lesson_plan(prompt, is_hindi)
+        return self._handle_lesson_plan(prompt, is_hindi, is_hinglish)
 
     def _extract_clean_topic(self, prompt: str) -> Tuple[str, str]:
         """
@@ -277,7 +284,7 @@ class OfflineProvider(LLMProvider):
 
         return "General Science", "flowchart"
 
-    def _handle_lesson_plan(self, prompt: str, is_hindi: bool) -> Dict[str, Any]:
+    def _handle_lesson_plan(self, prompt: str, is_hindi: bool, is_hinglish: bool = False) -> Dict[str, Any]:
         topic, context = self._extract_clean_topic(prompt)
         subject, visual_type = self._detect_subject(topic, context)
         t_lower = topic.lower()
@@ -290,26 +297,106 @@ class OfflineProvider(LLMProvider):
                 num_segments = n
                 break
 
+        is_7_days = any(k in p_lower for k in ["7 days", "7_days", "7-day", "10080"])
+        if is_7_days:
+            num_segments = 4
+
         segments = self._generate_domain_segments(topic, subject, visual_type, context, is_hindi, num_segments)
         final_segments = segments[:num_segments] if len(segments) >= num_segments else segments
 
+        # 7-day structured roadmap
+        study_roadmap_7_days = None
+        if is_7_days:
+            study_roadmap_7_days = [
+                {
+                    "day": 1,
+                    "title": f"Foundational Principles & Core Terminology of {topic}",
+                    "duration_minutes": 30,
+                    "revision_schedule": "Day 2 morning (10 min review)",
+                    "practice_goals": f"Define key variables and operational scope of {topic}",
+                    "assessment_type": "3 Diagnostic Concept Checks"
+                },
+                {
+                    "day": 2,
+                    "title": f"Internal Mechanics & Governing Laws in {topic}",
+                    "duration_minutes": 35,
+                    "revision_schedule": "Day 3 review flashcards",
+                    "practice_goals": "Trace cause-and-effect flow diagrams across input states",
+                    "assessment_type": "Formative Mechanism Quiz"
+                },
+                {
+                    "day": 3,
+                    "title": f"Real-World Examples & Intuitive Analogies for {topic}",
+                    "duration_minutes": 40,
+                    "revision_schedule": "Day 4 quick mental model recap",
+                    "practice_goals": "Map industrial and practical systems to core theory",
+                    "assessment_type": "Case Study Problem Set"
+                },
+                {
+                    "day": 4,
+                    "title": f"Mathematical Models, Formulas & Constraint Analysis",
+                    "duration_minutes": 45,
+                    "revision_schedule": "Day 5 formula sheet verification",
+                    "practice_goals": "Solve parametric equations and boundary trade-offs",
+                    "assessment_type": "Calculation & Analytical Drill"
+                },
+                {
+                    "day": 5,
+                    "title": f"Comparative Trade-offs & Architecture Patterns",
+                    "duration_minutes": 40,
+                    "revision_schedule": "Day 6 comparative matrix review",
+                    "practice_goals": "Compare competing approaches and design patterns",
+                    "assessment_type": "Scenario Comparison Assessment"
+                },
+                {
+                    "day": 6,
+                    "title": f"Edge Cases, Misconception Debugging & Remediation",
+                    "duration_minutes": 45,
+                    "revision_schedule": "Day 7 pre-exam recap",
+                    "practice_goals": "Identify and unblock common student traps and errors",
+                    "assessment_type": "Troubleshooting & Error Identification"
+                },
+                {
+                    "day": 7,
+                    "title": f"Comprehensive Summative Mastery & Practical Project",
+                    "duration_minutes": 60,
+                    "revision_schedule": "Weekly retention check",
+                    "practice_goals": f"End-to-end mastery synthesis and application in {topic}",
+                    "assessment_type": "Final Mastery Certification Exam (5 Multi-format Questions)"
+                }
+            ]
+
+        # Multi-node learning path
+        learning_path = [
+            {"step": 1, "topic": f"{topic} Fundamentals", "status": "completed", "difficulty": "beginner"},
+            {"step": 2, "topic": f"{topic} Operational Dynamics", "status": "current", "difficulty": "intermediate"},
+            {"step": 3, "topic": f"{topic} Practical Applications", "status": "upcoming", "difficulty": "intermediate"},
+            {"step": 4, "topic": f"Advanced {topic} Systems", "status": "upcoming", "difficulty": "advanced"},
+            {"step": 5, "topic": f"Mastery Assessment & Capstone", "status": "upcoming", "difficulty": "advanced"}
+        ]
+
+        title = f"{topic} (हिंदी पाठ)" if is_hindi else (f"{topic} (Hinglish)" if is_hinglish else f"Mastering {topic}")
+        target_lang = "hi" if is_hindi else ("hinglish" if is_hinglish else "en")
+
         return {
             "lesson_id": f"lesson_{uuid.uuid4().hex[:8]}",
-            "title": f"{topic} (हिंदी पाठ)" if is_hindi else f"Mastering {topic}",
+            "title": title,
             "subject": subject,
-            "description": f"{topic} के मुख्य सिद्धांतों और व्यावहारिक अनुप्रयोगों पर एक संवादात्मक मास्टरक्लास।" if is_hindi else f"An intuitive, structured interactive masterclass on {topic}.",
+            "description": f"{topic} के मुख्य सिद्धांतों और व्यावहारिक अनुप्रयोगों पर एक संवादात्मक मास्टरक्लास।" if is_hindi else (f"{topic} ki core concepts aur practical applications par live interactive lesson." if is_hinglish else f"An intuitive, structured interactive masterclass on {topic}."),
             "learning_objectives": [
                 f"{topic} के मूलभूत सिद्धांतों को समझना" if is_hindi else f"Understand the foundational principles of {topic}",
                 "कार्यात्मक तंत्र और व्यावहारिक उदाहरणों का विश्लेषण करना" if is_hindi else "Analyze operational mechanisms and real-world trade-offs",
                 "प्रश्नों के माध्यम से अवधारणा की पुष्टि करना" if is_hindi else "Verify conceptual mastery through formative checks"
             ],
             "target_level": "beginner",
-            "target_language": "hi" if is_hindi else "en",
-            "estimated_minutes": 5 * len(final_segments),
+            "target_language": target_lang,
+            "estimated_minutes": 10080 if is_7_days else (5 * len(final_segments)),
             "goal": "understand",
             "source_type": "pdf" if context else "topic",
             "source_name": topic,
-            "segments": final_segments
+            "segments": final_segments,
+            "study_roadmap_7_days": study_roadmap_7_days,
+            "learning_path": learning_path
         }
 
     def _generate_domain_segments(self, topic: str, subject: str, visual_type: str, context: str, is_hindi: bool, count: int) -> List[Dict[str, Any]]:
@@ -790,7 +877,7 @@ class OfflineProvider(LLMProvider):
             }
         ]
 
-    def _handle_evaluation(self, prompt: str, is_hindi: bool) -> Dict[str, Any]:
+    def _handle_evaluation(self, prompt: str, is_hindi: bool, is_hinglish: bool = False) -> Dict[str, Any]:
         p_lower = prompt.lower()
         topic, _ = self._extract_clean_topic(prompt)
 
@@ -823,50 +910,99 @@ class OfflineProvider(LLMProvider):
             is_correct = False
 
         if is_correct:
+            tb_state = {
+                "learner_level": "Beginner",
+                "current_concept": topic,
+                "understanding_state": "High",
+                "detected_misconception": "None (Concept sound)",
+                "teaching_strategy": "Advance to next learning objective",
+                "difficulty": "Adapted Higher",
+                "next_action": "Positive reinforcement & next segment unlock"
+            }
+            fb_text = "शानदार! आपका उत्तर वैचारिक रूप से बिल्कुल सटीक है।" if is_hindi else ("Bilkul sahi! Aapka conceptual understanding spot-on hai." if is_hinglish else "Excellent! That is conceptually spot-on and demonstrates clear understanding of the core principle.")
             return {
                 "is_correct": True,
                 "score": 1.0,
-                "feedback": "शानदार! आपका उत्तर वैचारिक रूप से बिल्कुल सटीक है।" if is_hindi else "Excellent! That is conceptually spot-on and demonstrates clear understanding of the core principle.",
+                "feedback": fb_text,
                 "misconception_detected": False,
                 "misconception_explanation": "",
+                "concept": topic,
+                "misconception": "",
+                "reasoning": "",
+                "severity": "low",
+                "needs_remediation": False,
+                "recommended_strategy": "advance_next",
                 "missing_concept": "",
                 "confidence": 0.98,
-                "adaptation_needed": False
+                "adaptation_needed": False,
+                "teacher_brain_state": tb_state
             }
         else:
             # Diagnose specific misconception
             misc = f"Student's explanation diverged from the governing causal relationship in {topic}."
             missing = f"Core operational principle of {topic}"
+            concept_name = topic
+            strategy = "real_world_analogy"
 
             t_low = topic.lower()
             if "electric" in t_low or "ohm" in t_low:
+                concept_name = "Ohm's Law"
                 misc = "Student believes current increases when resistance increases, confusing inverse with direct proportionality."
                 missing = "Inverse relationship in Ohm's Law (I = V / R)"
+                strategy = "water_pipe_analogy"
             elif "photosynthesis" in t_low:
+                concept_name = "Light Reactions & Photolysis"
                 misc = "Student confused the source of oxygen with CO2 carbon fixation rather than water photolysis."
                 missing = "Light-dependent photolysis of H2O"
+                strategy = "step_by_step_visual"
             elif "recursion" in t_low:
+                concept_name = "Recursion Base Case"
                 misc = "Student overlooked that without a base case, recursive stack frames exhaust available memory."
                 missing = "Base case termination condition"
+                strategy = "stack_visualizer"
             elif "blockchain" in t_low:
+                concept_name = "Cryptographic Immutability"
                 misc = "Student assumed central databases can alter chained cryptographic hashes without detection."
                 missing = "Cryptographic hash chaining"
+                strategy = "first_principles"
             elif "sky" in t_low:
+                concept_name = "Rayleigh Scattering Law"
                 misc = "Student assumed atmospheric gases have blue pigmentation rather than wavelength-dependent Rayleigh scattering (1/λ⁴)."
                 missing = "Rayleigh scattering 1/λ⁴"
+                strategy = "particle_wave_filter"
             elif "tcp" in t_low or "udp" in t_low:
+                concept_name = "Transport Protocol Trade-offs"
                 misc = "Student confused connection-oriented reliability with low-latency streaming requirements."
                 missing = "TCP 3-way handshake vs UDP connectionless throughput"
+                strategy = "comparative_matrix"
 
+            tb_state = {
+                "learner_level": "Beginner",
+                "current_concept": concept_name,
+                "understanding_state": "Needs Remediation",
+                "detected_misconception": misc,
+                "teaching_strategy": strategy.replace("_", " ").title(),
+                "difficulty": "Adapted Simpler Analogy",
+                "next_action": f"Deploy {strategy.replace('_', ' ')} video & ask confirmation check"
+            }
+
+            fb_text = "अच्छा प्रयास! आपने चरों के संबंध को देखा, लेकिन मुख्य दिशा या सिद्धांत में थोड़ा अंतर रह गया। आइए इसे एक नए सादृश्य से समझें।" if is_hindi else ("Achha koshish! Lekin core principle me confusion hai. Chaliye ek fresh real-world example se isse clarify karte hain." if is_hinglish else "Good attempt! You recognized that the variables interact, but inverted the core operational relationship. Let's revisit this with a fresh intuitive perspective.")
             return {
                 "is_correct": False,
                 "score": 0.2,
-                "feedback": "अच्छा प्रयास! आपने चरों के संबंध को देखा, लेकिन मुख्य दिशा या सिद्धांत में थोड़ा अंतर रह गया। आइए इसे एक नए सादृश्य से समझें।" if is_hindi else "Good attempt! You recognized that the variables interact, but inverted the core operational relationship. Let's revisit this with a fresh intuitive perspective.",
+                "feedback": fb_text,
                 "misconception_detected": True,
                 "misconception_explanation": misc,
+                "concept": concept_name,
+                "misconception": misc,
+                "reasoning": f"Learner's response indicates mental model confusion regarding {missing} in {concept_name}.",
+                "severity": "medium",
+                "needs_remediation": True,
+                "recommended_strategy": strategy,
                 "missing_concept": missing,
                 "confidence": 0.94,
-                "adaptation_needed": True
+                "adaptation_needed": True,
+                "teacher_brain_state": tb_state
             }
 
     def _handle_remediation(self, prompt: str, is_hindi: bool) -> Dict[str, Any]:
@@ -1124,30 +1260,125 @@ def extract_json_from_text(text: str) -> Dict[str, Any]:
     return {}
 
 
+class ResilientLLMProvider(LLMProvider):
+    """
+    Multi-Provider Resilient LLM Wrapper.
+    Orchestrates execution with:
+    1. Primary provider retry (up to 2 attempts)
+    2. Automatic failover to secondary configured provider (Gemini <-> Groq)
+    3. Final fallback to zero-dependency OfflineProvider
+    """
+    def __init__(self, primary: Optional[LLMProvider] = None, secondary: Optional[LLMProvider] = None, fallback: Optional[LLMProvider] = None):
+        self.primary = primary
+        self.secondary = secondary
+        self.fallback = fallback or OfflineProvider()
+        self.active_provider_name = (
+            "Gemini" if isinstance(self.primary, GeminiProvider)
+            else "Groq" if isinstance(self.primary, GroqProvider)
+            else "Offline"
+        )
+        self.fallback_occurred = False
+
+    def generate_text(self, prompt: str, system_prompt: Optional[str] = None, temperature: float = 0.7) -> str:
+        # 1. Primary provider with retry
+        if self.primary:
+            for attempt in range(2):
+                try:
+                    res = self.primary.generate_text(prompt, system_prompt=system_prompt, temperature=temperature)
+                    if res:
+                        return res
+                except Exception as e:
+                    print(f"[ResilientLLM] Primary attempt {attempt+1} failed: {e}")
+
+        # 2. Secondary provider failover
+        if self.secondary:
+            try:
+                print("[ResilientLLM] Failing over to secondary provider...")
+                self.fallback_occurred = True
+                res = self.secondary.generate_text(prompt, system_prompt=system_prompt, temperature=temperature)
+                if res:
+                    return res
+            except Exception as e:
+                print(f"[ResilientLLM] Secondary provider failed: {e}")
+
+        # 3. Offline fallback
+        self.fallback_occurred = True
+        return self.fallback.generate_text(prompt, system_prompt=system_prompt, temperature=temperature)
+
+    def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
+        # 1. Primary provider with retry
+        if self.primary:
+            for attempt in range(2):
+                try:
+                    res = self.primary.generate_json(prompt, system_prompt=system_prompt)
+                    if res:
+                        return res
+                except Exception as e:
+                    print(f"[ResilientLLM] Primary attempt {attempt+1} failed: {e}")
+
+        # 2. Secondary provider failover
+        if self.secondary:
+            try:
+                print("[ResilientLLM] Failing over to secondary provider...")
+                self.fallback_occurred = True
+                res = self.secondary.generate_json(prompt, system_prompt=system_prompt)
+                if res:
+                    return res
+            except Exception as e:
+                print(f"[ResilientLLM] Secondary provider failed: {e}")
+
+        # 3. Offline fallback
+        self.fallback_occurred = True
+        return self.fallback.generate_json(prompt, system_prompt=system_prompt)
+
+    def get_status(self) -> Dict[str, Any]:
+        return {
+            "active_provider": self.active_provider_name,
+            "has_primary": self.primary is not None,
+            "has_secondary": self.secondary is not None,
+            "fallback_occurred": self.fallback_occurred
+        }
+
+
 def create_llm_provider() -> LLMProvider:
     """
-    Factory creating the selected LLMProvider instance based on environment variables.
+    Factory creating the ResilientLLMProvider instance based on environment variables.
     """
     chosen_provider = os.getenv("LLM_PROVIDER", "").lower().strip()
     gemini_key = os.getenv("GEMINI_API_KEY", "").strip()
     groq_key = os.getenv("GROQ_API_KEY", "").strip()
 
+    primary = None
+    secondary = None
+
     if (chosen_provider == "gemini" or not chosen_provider) and gemini_key and _GEMINI_AVAILABLE:
         try:
             model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
-            return GeminiProvider(api_key=gemini_key, model_name=model)
+            primary = GeminiProvider(api_key=gemini_key, model_name=model)
         except Exception as e:
             print(f"[LLM] Gemini initialization error: {e}")
 
-    if (chosen_provider == "groq" or not chosen_provider) and groq_key and _GROQ_AVAILABLE:
+    if (chosen_provider == "groq" or not chosen_provider or primary is not None) and groq_key and _GROQ_AVAILABLE:
         try:
             model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
-            return GroqProvider(api_key=groq_key, model_name=model)
+            if primary is None:
+                primary = GroqProvider(api_key=groq_key, model_name=model)
+            else:
+                secondary = GroqProvider(api_key=groq_key, model_name=model)
         except Exception as e:
             print(f"[LLM] Groq initialization error: {e}")
 
-    return OfflineProvider()
+    # If groq was chosen and gemini is available as secondary
+    if chosen_provider == "groq" and gemini_key and _GEMINI_AVAILABLE and secondary is None and primary is not None:
+        try:
+            model = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+            secondary = GeminiProvider(api_key=gemini_key, model_name=model)
+        except Exception:
+            pass
+
+    return ResilientLLMProvider(primary=primary, secondary=secondary, fallback=OfflineProvider())
 
 
 # Global singleton provider instance
 llm_service = create_llm_provider()
+

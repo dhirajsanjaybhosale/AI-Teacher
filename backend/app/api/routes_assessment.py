@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.lesson_planning.schemas import Quiz, QuizSubmission, FeedbackReport
-from app.session_store import session_store
+from app.session_store import session_store, learner_profile_store
 from app.assessment.quiz_generator import quiz_generator
 from app.assessment.report import report_generator
 
@@ -47,6 +47,7 @@ async def submit_quiz(sub: QuizSubmission):
     session_misconceptions = session_store.get_misconceptions(sub.lesson_id)
     report = report_generator.generate_report(lesson, quiz, sub, misconceptions=session_misconceptions)
     session_store.save_report(report)
+    learner_profile_store.record_quiz_completed(report)
     print(f"[ASSESSMENT] Final feedback report created: Score={report.total_score}/{report.max_score} ({report.percentage}%), Misconceptions remediated={len(report.misconceptions)}, Next topic='{report.next_recommended_topic}'.")
     return report
 

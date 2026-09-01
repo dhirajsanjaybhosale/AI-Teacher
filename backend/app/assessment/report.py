@@ -70,7 +70,10 @@ Generate the tailored pedagogical report."""
             recommendations = self._build_dynamic_recommendations(lesson_plan, pct, understood, weak, is_hindi)
 
         next_topic = res.get("next_recommended_topic")
-        if not next_topic or next_topic.strip() == "":
+        # Pedagogical rule: If student scored below 60% and has weak concepts, recommend targeted remediation drill
+        if pct < 60 and weak:
+            next_topic = f"Foundational Remediation Drill: {weak[0]}"
+        elif not next_topic or next_topic.strip() == "":
             next_topic = self._infer_next_topic(lesson_plan, is_hindi)
 
         summary_feedback = res.get("summary_feedback", "")
@@ -88,7 +91,10 @@ Generate the tailored pedagogical report."""
             misconceptions=session_misc,
             recommendations=recommendations,
             next_recommended_topic=next_topic,
-            summary_feedback=summary_feedback
+            summary_feedback=summary_feedback,
+            learning_path=lesson_plan.learning_path,
+            study_roadmap_7_days=lesson_plan.study_roadmap_7_days,
+            retrieval_confidence=lesson_plan.retrieval_confidence
         )
 
     def _infer_next_topic(self, lesson_plan: LessonPlan, is_hindi: bool) -> str:

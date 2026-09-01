@@ -17,17 +17,20 @@ class KnowledgeRoutingResult(BaseModel):
     sources: List[SourceMetadata] = Field(default_factory=list, description="Verified sources with URLs and titles")
     source_name: str = Field(default="", description="Clean source identifier or topic title")
     clean_topic: str = Field(default="", description="Normalized topic/question title")
-    detected_language: str = Field(default="en", description="en or hi")
+    detected_language: str = Field(default="en", description="en, hi, or hinglish")
     detected_level: str = Field(default="beginner", description="beginner, intermediate, or advanced")
     detected_minutes: int = Field(default=10, description="Inferred or requested duration in minutes")
     search_provider: Optional[str] = None
+    retrieval_confidence: float = Field(default=1.0, description="Confidence score of RAG retrieval (0.0 - 1.0)")
+    retrieval_warning: Optional[str] = Field(default="", description="Warning message if retrieval confidence is low or scanned document detected")
+    is_scanned: bool = Field(default=False, description="True if document appears to be scanned image requiring OCR")
 
 
 class KnowledgeRouter:
     """
     Intelligent Knowledge Routing Engine.
     Dynamically determines whether a request requires:
-    1. Uploaded PDF Document Grounding (RAG via FAISS)
+    1. Uploaded Document Grounding (PDF, DOCX, PPTX, TXT RAG via FAISS)
     2. Live External Web Search (DuckDuckGo / Wikipedia / ArXiv)
     3. Universal General LLM Knowledge Base
     """
@@ -50,9 +53,11 @@ class KnowledgeRouter:
         q_clean = query.strip()
         q_lower = q_clean.lower()
 
-        # 1. Language Detection
+        # 1. Language Detection (English, Hindi, Hinglish)
         detected_lang = default_lang
-        if any(h in q_lower for h in ["in hindi", "hindi me", "हिंदी", "hindi mein", "hindi script", "explain in hindi"]):
+        if any(hg in q_lower for hg in ["in hinglish", "hinglish me", "hinglish mein", "hinglish script"]):
+            detected_lang = "hinglish"
+        elif any(h in q_lower for h in ["in hindi", "hindi me", "हिंदी", "hindi mein", "hindi script", "explain in hindi"]):
             detected_lang = "hi"
 
         # 2. Level Detection
@@ -129,12 +134,17 @@ class KnowledgeRouter:
         level: str = "beginner",
         time_minutes: int = 10,
         language: str = "en",
-        force_web_search: bool = False
+        force_web_search: bool = False,
+        document_bytes: Optional[bytes] = None,
+        document_filename: Optional[str] = None
     ) -> KnowledgeRoutingResult:
         """
-        Executes dynamic routing and returns the unified knowledge result.
+        Executes dynamic routing and returns the unified knowledge result across documents, web, and LLM.
         """
-        raw_query = topic or pdf_filename or "Core Educational Concepts"
+        doc_bytes = document_bytes or pdf_bytes
+        doc_name = document_filename or pdf_filename
+
+        raw_query = topic or doc_name or "Core Educational Concepts"
         clean_topic, det_lang, det_level, det_mins = self.parse_natural_language_intent(
             raw_query, default_level=level, default_lang=language, default_mins=time_minutes
         )
@@ -142,42 +152,60 @@ class KnowledgeRouter:
         now_iso = datetime.datetime.now(datetime.timezone.utc).isoformat()
 
         # -------------------------------------------------------------
-        # ROUTE 1: UPLOADED PDF DOCUMENT (RAG)
+        # ROUTE 1: UPLOADED DOCUMENT (PDF / DOCX / PPTX / TXT RAG)
         # -------------------------------------------------------------
-        if pdf_bytes and pdf_filename:
+        if doc_bytes and doc_name:
             try:
-                doc_data = self.parser.extract_text_from_bytes(pdf_bytes, filename=pdf_filename)
+                doc_data = self.parser.extract_text_from_bytes(doc_bytes, filename=doc_name)
+                is_scanned = doc_data.get("is_scanned", False)
+                scan_warning = doc_data.get("scan_warning", "")
+
                 chunks = self.chunker.chunk_document(doc_data)
                 retriever = FAISSRetriever()
                 retriever.add_chunks(chunks)
 
-                search_query = clean_topic if (topic and topic != pdf_filename) else doc_data.get("title", "Core concepts and mechanisms")
+                search_query = clean_topic if (topic and topic != doc_name) else doc_data.get("title", "Core concepts and mechanisms")
+                top_chunks = retriever.query(search_query, top_k=5)
+                retrieval_confidence = retriever.compute_retrieval_confidence(top_chunks) if top_chunks else 0.0
+
                 retrieved_context = retriever.get_combined_context(search_query, top_k=5, max_words=2500)
                 if not retrieved_context and doc_data.get("full_text"):
                     retrieved_context = doc_data["full_text"][:3000]
 
-                pdf_source = SourceMetadata(
-                    title=f"{pdf_filename} (Uploaded Textbook/Document)",
+                ext = os.path.splitext(doc_name)[1].upper().lstrip(".") or "DOC"
+                source_desc = f"{ext} Ingestion ({doc_data.get('total_pages', 1)} pages/slides, {doc_data.get('total_words', 0)} words, confidence={retrieval_confidence:.2f})"
+                if is_scanned:
+                    source_desc += " [SCANNED DOCUMENT DETECTED]"
+
+                doc_source = SourceMetadata(
+                    title=f"{doc_name} (Uploaded Document)",
                     url="",
-                    source=f"PDF Ingestion ({doc_data.get('total_pages', 1)} pages, {doc_data.get('total_words', 0)} words)",
+                    source=source_desc,
                     retrieved_at=now_iso,
-                    snippet=retrieved_context[:300]
+                    snippet=retrieved_context[:300] if retrieved_context else scan_warning
                 )
 
-                print(f"[KnowledgeRouter] Routed to PDF_RAG: '{pdf_filename}' ({len(chunks)} chunks indexed).")
+                retrieval_warning = scan_warning
+                if retrieval_confidence < 0.35 and not retrieval_warning:
+                    retrieval_warning = "The uploaded document contains limited direct overlap. General educational knowledge will supplement where appropriate."
+
+                print(f"[KnowledgeRouter] Routed to PDF_RAG ({ext}): '{doc_name}' ({len(chunks)} chunks indexed, confidence: {retrieval_confidence}).")
                 return KnowledgeRoutingResult(
                     route_type="pdf_rag",
                     grounded_context=retrieved_context,
-                    sources=[pdf_source],
-                    source_name=pdf_filename,
-                    clean_topic=clean_topic or doc_data.get("title", pdf_filename.replace('.pdf', '')),
+                    sources=[doc_source],
+                    source_name=doc_name,
+                    clean_topic=clean_topic or doc_data.get("title", doc_name.rsplit('.', 1)[0]),
                     detected_language=det_lang,
                     detected_level=det_level,
                     detected_minutes=det_mins,
-                    search_provider="FAISS Vector RAG"
+                    search_provider="FAISS Vector RAG",
+                    retrieval_confidence=retrieval_confidence,
+                    retrieval_warning=retrieval_warning,
+                    is_scanned=is_scanned
                 )
             except Exception as e:
-                print(f"[KnowledgeRouter] PDF RAG error: {e}. Falling back to general knowledge.")
+                print(f"[KnowledgeRouter] Document RAG error: {e}. Falling back to general knowledge.")
 
         # -------------------------------------------------------------
         # ROUTE 2: EXTERNAL WEB RETRIEVAL (DuckDuckGo / Wikipedia / ArXiv)

@@ -94,13 +94,39 @@ Evaluate the student's answer accurately."""
         if not is_correct and not misconception_explanation:
             misconception_explanation = f"Student's explanation diverged from the expected core relationship for '{segment.title}'."
 
+        concept = result_dict.get("concept", segment.title)
+        misconception = result_dict.get("misconception", misconception_explanation)
+        reasoning = result_dict.get("reasoning", f"Misunderstanding in {concept}")
+        severity = result_dict.get("severity", "low" if is_correct else "medium")
+        recommended_strategy = result_dict.get("recommended_strategy", "advance_next" if is_correct else "real_world_analogy")
+        missing_concept = result_dict.get("missing_concept", "")
+
+        tb_state = result_dict.get("teacher_brain_state") or {
+            "learner_level": "Beginner",
+            "current_concept": concept,
+            "understanding_state": "High" if is_correct else "Needs Remediation",
+            "detected_misconception": "None (Concept sound)" if is_correct else misconception,
+            "teaching_strategy": "Advance to next objective" if is_correct else recommended_strategy.replace("_", " ").title(),
+            "difficulty": "Standard / Progressive" if is_correct else "Adapted Simpler Analogy",
+            "next_action": "Unlock next segment" if is_correct else f"Deploy {recommended_strategy.replace('_', ' ')} re-explanation"
+        }
+
         return EvaluationResult(
             is_correct=is_correct,
             score=score,
             feedback=feedback,
             misconception_detected=misconception_detected,
             misconception_explanation=misconception_explanation,
-            adaptation_needed=adaptation_needed
+            concept=concept,
+            misconception=misconception,
+            reasoning=reasoning,
+            severity=severity,
+            needs_remediation=not is_correct,
+            recommended_strategy=recommended_strategy,
+            missing_concept=missing_concept,
+            confidence=float(result_dict.get("confidence", 0.95)),
+            adaptation_needed=adaptation_needed,
+            teacher_brain_state=tb_state
         )
 
 

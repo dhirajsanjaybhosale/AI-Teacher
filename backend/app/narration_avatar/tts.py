@@ -33,6 +33,10 @@ class TTSEngine:
         "hi": {
             "female": "hi-IN-SwaraNeural",
             "male": "hi-IN-MadhurNeural"
+        },
+        "hinglish": {
+            "female": "en-IN-NeerjaNeural",
+            "male": "en-IN-PrabhatNeural"
         }
     }
 
@@ -70,7 +74,14 @@ class TTSEngine:
         if not text or not text.strip():
             text = "Welcome to this concept lesson."
 
-        lang_key = "hi" if language.lower() in ["hi", "hindi"] else "en"
+        lang_lower = language.lower()
+        if "hinglish" in lang_lower:
+            lang_key = "hinglish"
+        elif lang_lower in ["hi", "hindi"]:
+            lang_key = "hi"
+        else:
+            lang_key = "en"
+
         voice = self.VOICES.get(lang_key, {}).get(gender, "en-US-JennyNeural")
 
         if not output_filename:

@@ -93,22 +93,45 @@ class FAISSRetriever:
             results.append(res)
         return results
 
+    def compute_retrieval_confidence(self, results: List[Dict[str, Any]]) -> float:
+        """
+        Computes a normalized retrieval confidence score (0.0 to 1.0) based on top chunk similarities.
+        """
+        if not results:
+            return 0.0
+        scores = [r.get("similarity_score", 0.0) for r in results]
+        top_score = max(scores)
+        avg_score = sum(scores) / len(scores)
+        # Weighted combination of top hit and average
+        confidence = 0.7 * top_score + 0.3 * avg_score
+        return round(float(np.clip(confidence, 0.0, 1.0)), 2)
+
     def get_combined_context(self, query_text: str, top_k: int = 4, max_words: int = 1500) -> str:
         """
         Retrieves top_k chunks and merges them into a clean LLM context block.
+        Injects a low-retrieval confidence disclaimer if relevance is below threshold.
         """
         results = self.query(query_text, top_k=top_k)
         if not results:
-            return ""
+            return "NOTE: The uploaded document does not contain enough information. Use general educational knowledge only where appropriate and clearly distinguish it."
 
+        confidence = self.compute_retrieval_confidence(results)
         context_blocks = []
+
+        if confidence < 0.35:
+            context_blocks.append(
+                "NOTE: The uploaded document does not contain enough information. Use general educational knowledge only where appropriate and clearly distinguish it.\n"
+            )
+
         current_words = 0
         for r in results:
             text = r["text"]
             words = text.split()
             if current_words + len(words) > max_words and context_blocks:
                 break
-            context_blocks.append(f"--- [Page {r.get('page', 1)}] ---\n{text}")
+            sec_header = f" | Section: {r.get('section')}" if r.get("section") else ""
+            context_blocks.append(f"--- [Page {r.get('page', 1)}{sec_header}] ---\n{text}")
             current_words += len(words)
 
         return "\n\n".join(context_blocks)
+

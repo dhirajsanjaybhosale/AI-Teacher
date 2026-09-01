@@ -1,5 +1,7 @@
-from typing import Dict, Optional, List
-from app.lesson_planning.schemas import LessonPlan, Quiz, FeedbackReport
+import os
+import json
+from typing import Dict, Optional, List, Any
+from app.lesson_planning.schemas import LessonPlan, Quiz, FeedbackReport, LearnerProgress
 
 
 class SessionStore:
@@ -50,6 +52,72 @@ class SessionStore:
         self._misconceptions.pop(lesson_id, None)
 
 
-# Global singleton
+class LearnerProfileStore:
+    """
+    Persistent student learning profile and longitudinal progress store.
+    Persists progress to disk at 'media/learner_progress.json'.
+    """
+    def __init__(self, filepath: str = "media/learner_progress.json"):
+        self.filepath = filepath
+        self.progress = self._load()
+
+    def _load(self) -> LearnerProgress:
+        if os.path.exists(self.filepath):
+            try:
+                with open(self.filepath, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    return LearnerProgress(**data)
+            except Exception as e:
+                print(f"[LearnerProfileStore] Load error: {e}")
+        return LearnerProgress()
+
+    def _save(self) -> None:
+        try:
+            os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
+            with open(self.filepath, "w", encoding="utf-8") as f:
+                json.dump(self.progress.model_dump(), f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f"[LearnerProfileStore] Save error: {e}")
+
+    def record_lesson_started(self, topic: str) -> None:
+        if topic and topic not in self.progress.topics_studied:
+            self.progress.topics_studied.append(topic)
+        self.progress.total_lessons_studied = len(self.progress.topics_studied)
+        self._save()
+
+    def record_question_attempt(self, is_correct: bool, concept: str, misconception: Optional[str] = None) -> None:
+        self.progress.questions_attempted += 1
+        if is_correct:
+            self.progress.questions_correct += 1
+            if concept and concept not in self.progress.mastered_concepts:
+                self.progress.mastered_concepts.append(concept)
+        else:
+            if concept and concept not in self.progress.weak_concepts:
+                self.progress.weak_concepts.append(concept)
+            if misconception and misconception not in self.progress.all_misconceptions_encountered:
+                self.progress.all_misconceptions_encountered.append(misconception)
+
+        if self.progress.questions_attempted > 0:
+            self.progress.accuracy_percentage = round((self.progress.questions_correct / self.progress.questions_attempted) * 100, 1)
+        self._save()
+
+    def record_quiz_completed(self, report: FeedbackReport) -> None:
+        self.progress.recent_quiz_scores.append({
+            "lesson_title": report.title,
+            "percentage": report.percentage,
+            "total_score": report.total_score,
+            "max_score": report.max_score
+        })
+        if report.next_recommended_topic and report.next_recommended_topic not in self.progress.recommended_topics_history:
+            self.progress.recommended_topics_history.append(report.next_recommended_topic)
+        self._save()
+
+    def get_progress(self) -> LearnerProgress:
+        return self.progress
+
+
+# Global singletons
 session_store = SessionStore()
+learner_profile_store = LearnerProfileStore()
+
 

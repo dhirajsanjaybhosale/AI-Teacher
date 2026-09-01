@@ -67,6 +67,11 @@ Provide your pedagogical response."""
         resp_text = res.get("response_text", f"Let's look at {lesson.title} step-by-step to make the core mechanism intuitive.")
         example = res.get("example", "")
 
+        is_hinglish = (lang.lower() == "hinglish" or "hinglish" in request.user_query.lower())
+        is_hindi = (not is_hinglish and (lang.lower() in ["hi", "hindi"] or "hindi" in request.user_query.lower() or "हिंदी" in request.user_query))
+        lang_name = "Hindi (हिंदी)" if is_hindi else ("Hinglish" if is_hinglish else "English")
+        target_lang_code = "hi" if is_hindi else ("hinglish" if is_hinglish else "en")
+
         # Optionally synthesize audio narration for the response
         audio_url = None
         try:
@@ -75,11 +80,11 @@ Provide your pedagogical response."""
                 full_speech += f" For example: {example}"
             wav_path, _, _ = tts_engine.synthesize(
                 full_speech,
-                language="hi" if is_hindi else "en",
+                language=target_lang_code,
                 output_filename=f"followup_{lesson.lesson_id[:8]}"
             )
-            # Audio file generated
-            audio_url = f"/media/videos/followup_{lesson.lesson_id[:8]}.wav"
+            # Audio file generated in media/audio/
+            audio_url = f"/media/audio/followup_{lesson.lesson_id[:8]}.wav"
         except Exception as e:
             print(f"[TeacherAssistant] TTS speech note: {e}")
 

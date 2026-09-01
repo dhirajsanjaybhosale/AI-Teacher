@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.lesson_planning.schemas import AnswerSubmission, EvaluationResult, FollowUpRequest, FollowUpResponse
-from app.session_store import session_store
+from app.session_store import session_store, learner_profile_store
 from app.interaction.evaluator import answer_evaluator
 from app.interaction.adapter import lesson_adapter
 from app.interaction.assistant import teacher_assistant
@@ -39,6 +39,13 @@ async def submit_answer(sub: AnswerSubmission):
     )
     print(f"[EVALUATION] Student answer assessed: is_correct={eval_result.is_correct}, score={eval_result.score:.2f}")
 
+    # Track in persistent learner store
+    learner_profile_store.record_question_attempt(
+        is_correct=eval_result.is_correct,
+        concept=eval_result.concept or target_seg.title,
+        misconception=eval_result.misconception if eval_result.misconception_detected else None
+    )
+
     # 2. Adaptive Remediation Trigger
     if eval_result.adaptation_needed:
         print(f"[ADAPTATION] Misconception detected: {eval_result.misconception_explanation}")
@@ -49,7 +56,8 @@ async def submit_answer(sub: AnswerSubmission):
             user_answer=sub.user_answer,
             misconception=eval_result.misconception_explanation,
             lesson_title=lesson.title,
-            language=lang
+            language=lang,
+            strategy=eval_result.recommended_strategy
         )
         eval_result.adapted_segment = adapted_seg
         print(f"[ADAPTATION] Generated remediation segment '{adapted_seg.title}' with video at '{adapted_seg.video_url}'.")

@@ -18,16 +18,20 @@ class TextChunker:
         chunks = []
         chunk_id = 0
         pages = parsed_doc.get("pages", [])
+        doc_filename = parsed_doc.get("filename", "document.pdf")
         
         if not pages and parsed_doc.get("full_text"):
             # Fallback if pages not structured
-            return self.chunk_raw_text(parsed_doc["full_text"], source=parsed_doc.get("filename", "unknown"))
+            return self.chunk_raw_text(parsed_doc["full_text"], source=doc_filename)
 
         for page in pages:
             page_num = page["page_number"]
             page_text = page["text"]
+            headings = page.get("headings", [])
+            formulas = page.get("formulas", [])
+            section = page.get("section") or page.get("slide_title") or (headings[0] if headings else "")
+            
             paragraphs = [p.strip() for p in page_text.split("\n\n") if p.strip()]
-
             current_chunk_words = []
             
             for para in paragraphs:
@@ -41,8 +45,12 @@ class TextChunker:
                             "chunk_id": f"chunk_{chunk_id}",
                             "text": chunk_text,
                             "page": page_num,
-                            "source": parsed_doc.get("filename", "document.pdf"),
-                            "word_count": len(current_chunk_words)
+                            "section": section,
+                            "headings": headings,
+                            "formulas": formulas,
+                            "source": doc_filename,
+                            "word_count": len(current_chunk_words),
+                            "content_type": "equation" if formulas else ("code" if "def " in chunk_text or "class " in chunk_text or "import " in chunk_text else "text")
                         })
                         chunk_id += 1
                         # Overlap
@@ -52,23 +60,33 @@ class TextChunker:
                         # Paragraph itself is larger than chunk_size
                         for i in range(0, len(para_words), self.chunk_size - self.chunk_overlap):
                             sub_words = para_words[i:i + self.chunk_size]
+                            sub_text = " ".join(sub_words)
                             chunks.append({
                                 "chunk_id": f"chunk_{chunk_id}",
-                                "text": " ".join(sub_words),
+                                "text": sub_text,
                                 "page": page_num,
-                                "source": parsed_doc.get("filename", "document.pdf"),
-                                "word_count": len(sub_words)
+                                "section": section,
+                                "headings": headings,
+                                "formulas": formulas,
+                                "source": doc_filename,
+                                "word_count": len(sub_words),
+                                "content_type": "equation" if formulas else "text"
                             })
                             chunk_id += 1
                         current_chunk_words = []
 
             if current_chunk_words:
+                chunk_text = " ".join(current_chunk_words)
                 chunks.append({
                     "chunk_id": f"chunk_{chunk_id}",
-                    "text": " ".join(current_chunk_words),
+                    "text": chunk_text,
                     "page": page_num,
-                    "source": parsed_doc.get("filename", "document.pdf"),
-                    "word_count": len(current_chunk_words)
+                    "section": section,
+                    "headings": headings,
+                    "formulas": formulas,
+                    "source": doc_filename,
+                    "word_count": len(current_chunk_words),
+                    "content_type": "equation" if formulas else "text"
                 })
                 chunk_id += 1
 

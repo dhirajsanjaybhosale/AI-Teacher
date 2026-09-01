@@ -21,19 +21,24 @@ class LessonAdapter:
         user_answer: str,
         misconception: str,
         lesson_title: str = "AI Teacher Lesson",
-        language: str = "en"
+        language: str = "en",
+        strategy: Optional[str] = None,
+        generate_video: bool = True
     ) -> Segment:
         """
         Synthesizes a novel, customized remediation segment and generates its video clip.
         """
-        is_hindi = (language.lower() in ["hi", "hindi"])
-        lang_name = "Hindi (हिंदी)" if is_hindi else "English"
+        is_hinglish = (language.lower() == "hinglish" or "hinglish" in language.lower())
+        is_hindi = (not is_hinglish and language.lower() in ["hi", "hindi"])
+        lang_name = "Hindi (हिंदी)" if is_hindi else ("Hinglish" if is_hinglish else "English")
         remed_id = f"remed_{uuid.uuid4().hex[:6]}"
+        strat_note = f"SPECIFIC PEDAGOGICAL STRATEGY: {strategy.replace('_', ' ').title()}." if strategy else ""
 
         system_prompt = f"""You are an elite adaptive AI Teacher specializing in intuitive remediation and misconception unblocking.
 A student gave an incorrect answer to a check question. Your goal is to re-explain the concept using a completely fresh, intuitive analogy or visual perspective.
+{strat_note}
 
-LANGUAGE: {lang_name} ({'Respond entirely in natural, encouraging Hindi script' if is_hindi else 'Respond in clear, supportive English'})
+LANGUAGE: {lang_name} ({'Respond entirely in natural, encouraging Hindi script' if is_hindi else ('Respond in natural conversational Hinglish using roman script' if is_hinglish else 'Respond in clear, supportive English')})
 
 PEDAGOGICAL STRATEGY:
 1. 'title': Engaging title indicating a fresh perspective (e.g., 'Revisiting Energy Storage: Fuel vs. Battery' or 'नए नजरिए से समझें').
@@ -96,16 +101,17 @@ Create an adaptive remediation segment that bridges this conceptual gap."""
             is_remediation=True
         )
 
-        # Assemble the remediation video immediately
-        print(f"[LessonAdapter] Assembling remediation video for segment '{remed_segment.title}'...")
-        video_info = self.assembler.assemble_segment_video(
-            segment=remed_segment,
-            lesson_title=f"{lesson_title} (Remediation)",
-            segment_index=1,
-            total_segments=1,
-            language=language
-        )
-        remed_segment.video_url = video_info["relative_url"]
+        # Assemble the remediation video
+        if generate_video:
+            print(f"[LessonAdapter] Assembling remediation video for segment '{remed_segment.title}'...")
+            video_info = self.assembler.assemble_segment_video(
+                segment=remed_segment,
+                lesson_title=f"{lesson_title} (Remediation)",
+                segment_index=1,
+                total_segments=1,
+                language=language
+            )
+            remed_segment.video_url = video_info["relative_url"]
 
         return remed_segment
 

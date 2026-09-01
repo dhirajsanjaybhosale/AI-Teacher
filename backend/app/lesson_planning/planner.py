@@ -19,14 +19,21 @@ class LessonPlanner:
         retrieved_context: Optional[str] = None,
         source_name: Optional[str] = None,
         source_route: Optional[str] = "llm_knowledge",
-        sources: Optional[List[SourceMetadata]] = None
+        sources: Optional[List[SourceMetadata]] = None,
+        retrieval_confidence: float = 1.0,
+        retrieval_warning: str = "",
+        is_scanned: bool = False
     ) -> LessonPlan:
         """
         Creates a full structured lesson plan tailored to any educational subject.
         """
         # Determine number of segments based on time budget
         time_mins = preferences.time_minutes
-        if time_mins <= 5:
+        is_7_days = time_mins >= 1440 or preferences.time_minutes == 10080
+
+        if is_7_days:
+            num_segments = 4
+        elif time_mins <= 5:
             num_segments = 2
         elif time_mins <= 10:
             num_segments = 3
@@ -38,11 +45,13 @@ class LessonPlanner:
             num_segments = 6
 
         lang_code = preferences.language.lower()
-        is_hindi = (lang_code == "hi" or "hindi" in lang_code)
-        lang_name = "Hindi (हिंदी)" if is_hindi else "English"
+        is_hinglish = (lang_code == "hinglish" or "hinglish" in lang_code)
+        is_hindi = (not is_hinglish and (lang_code == "hi" or "hindi" in lang_code))
+        lang_name = "Hindi (हिंदी)" if is_hindi else ("Hinglish (Conversational Hindi-English)" if is_hinglish else "English")
         level = preferences.level.lower()
         goal = preferences.goal or "understand"
-        style = preferences.teaching_style or "intuitive"
+        style = preferences.teaching_style or "Simple"
+        prior_knowledge = preferences.existing_knowledge or "None provided"
 
         # Build prompt
         context_section = ""
@@ -61,10 +70,11 @@ Your mission is to synthesize an intuitive, structured educational lesson for a 
 
 STUDENT PROFILE:
 - Target Level: {level.upper()} (adapt vocabulary, depth, and pacing accordingly)
-- Time Budget: {time_mins} minutes (create exactly {num_segments} structured instructional segments)
+- Time Budget: {'7 Days Comprehensive Mastery' if is_7_days else f'{time_mins} minutes'} ({num_segments} instructional segments)
 - Learning Goal: {goal.upper()} (e.g., focus on interview depth, exam definitions, or intuitive understanding)
-- Teaching Style: {style.upper()}
-- Instruction Language: {lang_name} ({'ALL titles, spoken explanations, examples, key points, and questions MUST be written in natural, fluent Hindi script' if is_hindi else 'All content must be in clear, engaging, conversational English'})
+- Teaching Style: {style.upper()} (e.g., Simple, Detailed, Visual, Practical, Socratic, Exam-focused)
+- Student Background Knowledge: {prior_knowledge}
+- Instruction Language: {lang_name} ({'ALL titles, spoken explanations, examples, key points, and questions MUST be written in natural, fluent Hindi script' if is_hindi else ('Use natural Hinglish with roman script that Indian students naturally speak and understand' if is_hinglish else 'All content must be in clear, engaging, conversational English')})
 
 PEDAGOGICAL REQUIREMENTS FOR EACH SEGMENT:
 1. 'title': Clear, distinct subtopic title.
@@ -237,7 +247,12 @@ Ensure high conceptual accuracy, pedagogical clarity, subject-appropriate visual
             source_type=response_dict.get("source_type", "topic"),
             source_name=response_dict.get("source_name", source_name or preferences.topic),
             source_route=source_route or "llm_knowledge",
-            sources=sources or []
+            sources=sources or [],
+            retrieval_confidence=retrieval_confidence,
+            retrieval_warning=retrieval_warning,
+            is_scanned_doc=is_scanned,
+            study_roadmap_7_days=response_dict.get("study_roadmap_7_days"),
+            learning_path=response_dict.get("learning_path")
         )
 
 
