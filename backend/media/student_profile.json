@@ -35,14 +35,14 @@
   },
   "overall_mastery": 78,
   "quiz_average": 86,
-  "lessons_completed": 26,
-  "hours_learned": 38.8,
+  "lessons_completed": 30,
+  "hours_learned": 39.8,
   "learning_streak_days": 7,
   "today_goal_completed": 3,
   "today_goal_total": 4,
   "today_study_time_minutes": 42,
-  "continue_learning_topic": "Depth-First Search (DFS)",
-  "continue_learning_progress": 98,
+  "continue_learning_topic": "Mastering Cellular_Respiration_Chapter.Pdf",
+  "continue_learning_progress": 100,
   "continue_learning_time_remaining": 12,
   "ai_recommendation": "Revise Graph Representation before starting DFS.",
   "ai_recommendation_reason": "You had difficulty with graph representation in your last lesson.",
@@ -224,9 +224,9 @@
     {
       "concept": "Ohm's Law",
       "misconception": "Student believes current increases when resistance increases, confusing inverse with direct proportionality.",
-      "attempts": 2,
+      "attempts": 3,
       "mastery_percentage": 68,
-      "last_attempted": "2 days ago",
+      "last_attempted": "Today",
       "ai_recommendation": "Review water-pipe pressure analogy for electrical resistance."
     },
     {
@@ -239,6 +239,42 @@
     }
   ],
   "learning_history": [
+    {
+      "topic": "Mastering Cellular_Respiration_Chapter.Pdf",
+      "date": "Today",
+      "duration_minutes": 5,
+      "quiz_score_percentage": 100,
+      "mastery_delta": "+10%",
+      "language": "en",
+      "status": "Completed"
+    },
+    {
+      "topic": "Mastering Sample_Chapter.Pdf",
+      "date": "Today",
+      "duration_minutes": 5,
+      "quiz_score_percentage": 100,
+      "mastery_delta": "+10%",
+      "language": "en",
+      "status": "Completed"
+    },
+    {
+      "topic": "Depth-First Search (DFS)",
+      "date": "Today",
+      "duration_minutes": 25,
+      "quiz_score_percentage": 92,
+      "mastery_delta": "+9%",
+      "language": "Hinglish",
+      "status": "Completed"
+    },
+    {
+      "topic": "Depth-First Search (DFS)",
+      "date": "Today",
+      "duration_minutes": 25,
+      "quiz_score_percentage": 92,
+      "mastery_delta": "+9%",
+      "language": "Hinglish",
+      "status": "Completed"
+    },
     {
       "topic": "Depth-First Search (DFS)",
       "date": "Today",

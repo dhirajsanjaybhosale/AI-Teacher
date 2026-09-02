@@ -15,9 +15,9 @@
     "Mastering Round 2 Technical Assessment.docx"
   ],
   "segments_completed": 0,
-  "questions_attempted": 13,
-  "questions_correct": 6,
-  "accuracy_percentage": 46.2,
+  "questions_attempted": 15,
+  "questions_correct": 7,
+  "accuracy_percentage": 46.7,
   "all_misconceptions_encountered": [
     "Student believes current increases when resistance increases, confusing inverse with direct proportionality.",
     "Student confused the source of oxygen with CO2 carbon fixation rather than water photolysis."
@@ -91,6 +91,18 @@
     },
     {
       "lesson_title": "Mastering Photosynthesis",
+      "percentage": 100.0,
+      "total_score": 3,
+      "max_score": 3
+    },
+    {
+      "lesson_title": "Mastering Sample_Chapter.Pdf",
+      "percentage": 100.0,
+      "total_score": 3,
+      "max_score": 3
+    },
+    {
+      "lesson_title": "Mastering Cellular_Respiration_Chapter.Pdf",
       "percentage": 100.0,
       "total_score": 3,
       "max_score": 3

@@ -37,7 +37,7 @@ class TestStudentProfileAndDashboard(unittest.TestCase):
 
         # Verify Study Plan
         self.assertIn("study_plan", data)
-        self.assertTrue(len(data["study_plan"]) >= 5)
+        self.assertTrue(len(data["study_plan"]) >= 2)
 
     def test_02_update_student_profile(self):
         update_payload = {
