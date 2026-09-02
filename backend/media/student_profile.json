@@ -44,9 +44,9 @@
   "continue_learning_topic": "Mastering Cellular_Respiration_Chapter.Pdf",
   "continue_learning_progress": 100,
   "continue_learning_time_remaining": 12,
-  "ai_recommendation": "Revise Graph Representation before starting DFS.",
-  "ai_recommendation_reason": "You had difficulty with graph representation in your last lesson.",
-  "ai_recommendation_topic": "Graph Representation",
+  "ai_recommendation": "Revise Light Reactions & Photolysis before proceeding.",
+  "ai_recommendation_reason": "You had difficulty with Light Reactions & Photolysis in your last lesson.",
+  "ai_recommendation_topic": "Light Reactions & Photolysis",
   "subjects_mastery": [
     {
       "subject": "Data Structures",
@@ -213,6 +213,14 @@
     }
   ],
   "misconceptions": [
+    {
+      "concept": "Light Reactions & Photolysis",
+      "misconception": "Student confused the source of oxygen with CO2 carbon fixation rather than water photolysis.",
+      "attempts": 1,
+      "mastery_percentage": 55,
+      "last_attempted": "Today",
+      "ai_recommendation": "Review foundational principles of Light Reactions & Photolysis with intuitive analogies."
+    },
     {
       "concept": "Graph Traversal",
       "misconception": "Confused adjacency list space complexity with adjacency matrix",
