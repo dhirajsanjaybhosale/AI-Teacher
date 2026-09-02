@@ -29,7 +29,10 @@ class Embedder:
         if _SENTENCE_TRANSFORMERS_AVAILABLE:
             try:
                 self.model = SentenceTransformer(model_name)
-                self.dim = self.model.get_sentence_embedding_dimension()
+                if hasattr(self.model, "get_embedding_dimension"):
+                    self.dim = self.model.get_embedding_dimension()
+                else:
+                    self.dim = self.model.get_sentence_embedding_dimension()
                 print(f"[Embedder] Loaded SentenceTransformer model '{model_name}' (dim={self.dim})")
             except Exception as e:
                 print(f"[Embedder] Could not initialize SentenceTransformer '{model_name}': {e}. Using fallback embedding.")

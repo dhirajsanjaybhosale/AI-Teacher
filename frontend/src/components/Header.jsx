@@ -1,7 +1,10 @@
 import React from 'react';
 import { Bot, Sparkles, Cpu, Globe, RotateCcw } from 'lucide-react';
 
-export default function Header({ systemHealth, language, onResetLesson, hasActiveLesson }) {
+export default function Header({ systemHealth, language, onResetLesson, hasActiveLesson, onSwitchLanguage }) {
+  const isGPU = Boolean(systemHealth?.gpu_available);
+  const currentLang = language?.toLowerCase() || 'en';
+
   return (
     <header className="header-container">
       <div className="header-brand" onClick={onResetLesson}>
@@ -18,18 +21,45 @@ export default function Header({ systemHealth, language, onResetLesson, hasActiv
       </div>
 
       <div className="header-actions">
-        {/* Hardware Mode Pill */}
-        <div className="status-pill">
-          <Cpu size={15} className="text-cyan" />
-          <span>{systemHealth?.gpu_available ? 'GPU Engine (CUDA)' : 'CPU Neural Engine'}</span>
-          <span className="status-dot"></span>
+        {/* Avatar Execution Mode Badge */}
+        <div className="status-pill avatar-mode-pill" title={isGPU ? 'GPU Accelerated Lip-Sync' : 'Lightweight CPU Synchronized 2D Vector Avatar'}>
+          <span className="mode-status-dot">🟢</span>
+          <Cpu size={14} className="text-cyan" />
+          <span className="mode-name">{isGPU ? 'GPU Lip-Sync Mode' : 'CPU Avatar Mode'}</span>
         </div>
 
-        {/* Language Badge */}
-        <div className="status-pill">
-          <Globe size={15} className="text-indigo" />
-          <span>{language === 'hi' ? 'Hindi (हिंदी)' : 'English'}</span>
-        </div>
+        {/* Live Mid-Lesson Language Switcher */}
+        {hasActiveLesson && onSwitchLanguage ? (
+          <div className="lang-switcher-pill">
+            <Globe size={14} className="text-indigo" />
+            <button
+              className={`lang-btn ${currentLang === 'en' ? 'active' : ''}`}
+              onClick={() => onSwitchLanguage('en')}
+              title="Switch to English"
+            >
+              EN
+            </button>
+            <button
+              className={`lang-btn ${currentLang === 'hi' ? 'active' : ''}`}
+              onClick={() => onSwitchLanguage('hi')}
+              title="Switch to Hindi"
+            >
+              हिंदी
+            </button>
+            <button
+              className={`lang-btn ${currentLang === 'hinglish' ? 'active' : ''}`}
+              onClick={() => onSwitchLanguage('hinglish')}
+              title="Switch to Hinglish"
+            >
+              Hinglish
+            </button>
+          </div>
+        ) : (
+          <div className="status-pill">
+            <Globe size={14} className="text-indigo" />
+            <span>{currentLang === 'hi' ? 'हिंदी' : (currentLang === 'hinglish' ? 'Hinglish' : 'English')}</span>
+          </div>
+        )}
 
         {/* Reset / New Lesson Button */}
         {hasActiveLesson && (

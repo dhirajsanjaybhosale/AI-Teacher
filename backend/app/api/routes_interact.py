@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 
 from app.lesson_planning.schemas import AnswerSubmission, EvaluationResult, FollowUpRequest, FollowUpResponse
-from app.session_store import session_store, learner_profile_store
+from app.session_store import session_store, learner_profile_store, student_profile_store
 from app.interaction.evaluator import answer_evaluator
 from app.interaction.adapter import lesson_adapter
 from app.interaction.assistant import teacher_assistant
@@ -20,13 +20,13 @@ async def submit_answer(sub: AnswerSubmission):
         raise HTTPException(status_code=404, detail="Lesson session not found.")
 
     target_seg = None
-    for s in lesson.segments:
-        if s.id == sub.segment_id:
-            target_seg = s
+    for seg in lesson.segments:
+        if seg.id == sub.segment_id:
+            target_seg = seg
             break
 
     if not target_seg:
-        raise HTTPException(status_code=404, detail="Segment not found in active lesson.")
+        raise HTTPException(status_code=404, detail="Segment not found in this lesson.")
 
     lang = sub.language or lesson.target_language
 
@@ -50,6 +50,10 @@ async def submit_answer(sub: AnswerSubmission):
     if eval_result.adaptation_needed:
         print(f"[ADAPTATION] Misconception detected: {eval_result.misconception_explanation}")
         session_store.record_misconception(lesson.lesson_id, eval_result.misconception_explanation)
+        student_profile_store.record_misconception(
+            concept=eval_result.concept or target_seg.title,
+            misconception=eval_result.misconception_explanation
+        )
         
         adapted_seg = lesson_adapter.create_remediation_segment(
             original_segment=target_seg,

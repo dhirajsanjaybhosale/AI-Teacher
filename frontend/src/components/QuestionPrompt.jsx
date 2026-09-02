@@ -75,8 +75,8 @@ export default function QuestionPrompt({
       {/* Header */}
       <div className="q-header">
         <div className="q-badge">
-          <HelpCircle size={18} className="text-cyan" />
-          <span>Formative Check • Concept Verification</span>
+          <span className="q-brain-icon">🧠</span>
+          <span className="q-badge-text">Let's check your understanding</span>
         </div>
         {question.hint && (
           <div className="q-hint-box" title={question.hint}>
@@ -157,17 +157,41 @@ export default function QuestionPrompt({
               <h4 className="feedback-title">
                 {evaluationResult.is_correct
                   ? 'Concept Mastered! Outstanding Work'
-                  : 'Misconception Detected: Let\'s Revisit This'}
+                  : 'Let\'s Revisit This: You\'re Very Close!'}
               </h4>
               <p className="feedback-body">{evaluationResult.feedback}</p>
             </div>
           </div>
 
+          {/* Conversational Teacher Dialogue on Misconception */}
+          {!evaluationResult.is_correct && (
+            <div className="teacher-dialogue-bubble" style={{ margin: '10px 0', padding: '10px 14px', borderRadius: '8px', background: 'rgba(30, 41, 59, 0.7)', borderLeft: '3px solid #f59e0b' }}>
+              <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fbbf24', display: 'block', marginBottom: '4px' }}>
+                👩‍🏫 Dr. Nova (AI Teacher):
+              </span>
+              <p style={{ margin: 0, fontSize: '0.86rem', color: '#f8fafc', fontStyle: 'italic', lineHeight: 1.45 }}>
+                “You're very close! Don't worry—this is a very common confusion. Let's look at this another way with a dedicated re-explanation video!”
+              </p>
+            </div>
+          )}
+
           {/* Misconception details if incorrect */}
-          {!evaluationResult.is_correct && evaluationResult.misconception_explanation && (
+          {!evaluationResult.is_correct && (evaluationResult.misconception_explanation || evaluationResult.misconception) && (
             <div className="misconception-callout">
-              <span className="misconception-tag">Diagnosed Mental Gap:</span>
-              <p className="misconception-text">{evaluationResult.misconception_explanation}</p>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                <span className="misconception-tag">Diagnosed Mental Gap</span>
+                {evaluationResult.recommended_strategy && (
+                  <span className="strategy-tag" style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)', fontWeight: '600' }}>
+                    Strategy: {evaluationResult.recommended_strategy.replace(/_/g, ' ').toUpperCase()}
+                  </span>
+                )}
+                {evaluationResult.severity && (
+                  <span className="severity-tag" style={{ fontSize: '0.70rem', padding: '2px 6px', borderRadius: '4px', background: evaluationResult.severity === 'high' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)', color: evaluationResult.severity === 'high' ? '#f87171' : '#fbbf24' }}>
+                    Severity: {evaluationResult.severity.toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <p className="misconception-text">{evaluationResult.misconception_explanation || evaluationResult.misconception}</p>
             </div>
           )}
 

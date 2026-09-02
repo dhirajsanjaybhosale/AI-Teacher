@@ -6,7 +6,7 @@ from app.ingestion.knowledge_router import knowledge_router
 from app.lesson_planning.planner import lesson_planner
 from app.lesson_planning.schemas import LessonPlan, LearnerPreferences, LanguageSwitchRequest, LearnerProgress
 from app.narration_avatar.video_assembler import video_assembler
-from app.session_store import session_store, learner_profile_store
+from app.session_store import session_store, learner_profile_store, student_profile_store
 
 router = APIRouter(prefix="/api/lesson", tags=["Lesson"])
 
@@ -24,24 +24,25 @@ async def create_lesson(
     force_web_search: bool = Form(False)
 ):
     """
-    Creates a new structured lesson from an uploaded document (PDF/DOCX/PPTX/TXT),
-    live web search, or general typed topic.
-    Immediately routes knowledge via KnowledgeRouter and generates video for segment 1.
+    Unified Lesson Creation Endpoint.
+    Dynamically routes between Document RAG, External Live Web Search, and Universal LLM Knowledge.
+    Personalizes curriculum using the student profile memory.
     """
-    effective_file = document_file or pdf_file
-    if not effective_file and not topic:
-        raise HTTPException(status_code=400, detail="Please provide either an uploaded document or a topic name.")
-
+    doc_upload = document_file or pdf_file
     doc_bytes = None
     doc_filename = None
-    if effective_file and effective_file.filename:
-        doc_filename = effective_file.filename
-        doc_bytes = await effective_file.read()
 
-    # 1. Execute Knowledge Routing (Document RAG vs External Web vs LLM Knowledge)
+    if doc_upload and doc_upload.filename:
+        doc_filename = doc_upload.filename
+        doc_bytes = await doc_upload.read()
+
+    # Retrieve student profile for memory & personalization
+    stud_prof = student_profile_store.get_profile()
+
+    # 1. Dynamic Knowledge Routing
     routing_result = await knowledge_router.route_knowledge(
-        pdf_bytes=doc_bytes,
-        pdf_filename=doc_filename,
+        document_bytes=doc_bytes,
+        document_filename=doc_filename,
         topic=topic,
         level=level,
         time_minutes=time_minutes,
@@ -49,14 +50,20 @@ async def create_lesson(
         force_web_search=force_web_search
     )
 
+    effective_level = routing_result.detected_level or (level if level != "beginner" else stud_prof.learning_profile.current_level)
+    effective_lang = routing_result.detected_language or (language if language != "en" else stud_prof.learning_profile.preferred_language)
+    effective_goal = routing_result.detected_goal or (stud_prof.learning_profile.learning_goals[0] if stud_prof.learning_profile.learning_goals else "understand")
+    effective_style = routing_result.detected_style or (teaching_style if teaching_style != "Simple" else (stud_prof.learning_profile.learning_styles[0] if stud_prof.learning_profile.learning_styles else "Visual"))
+
     # 2. Setup Learner Preferences
     preferences = LearnerPreferences(
         topic=routing_result.clean_topic or topic or doc_filename or "Core Concepts",
-        level=routing_result.detected_level or level,
+        level=effective_level,
         time_minutes=routing_result.detected_minutes or time_minutes,
-        language=routing_result.detected_language or language,
-        teaching_style=teaching_style,
-        existing_knowledge=existing_knowledge,
+        language=effective_lang,
+        goal=effective_goal,
+        teaching_style=effective_style,
+        existing_knowledge=existing_knowledge or f"Student: {stud_prof.personal_info.full_name}, {stud_prof.personal_info.course}",
         force_web_search=force_web_search
     )
 

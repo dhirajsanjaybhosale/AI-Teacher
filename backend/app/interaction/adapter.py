@@ -97,6 +97,8 @@ Create an adaptive remediation segment that bridges this conceptual gap."""
                 "Connecting key variables and causal relationships"
             ]),
             visual_diagram_type=res.get("visual_diagram_type", "comparison"),
+            visual_description=res.get("visual_description", "Intuitive side-by-side comparison diagram"),
+            visual_code_or_math=res.get("visual_code_or_math", res.get("example", "")),
             question=remed_q,
             is_remediation=True
         )

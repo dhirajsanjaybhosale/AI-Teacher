@@ -14,10 +14,22 @@ export const getFullMediaUrl = (relativeUrl) => {
   return `${API_BASE}${relativeUrl.startsWith('/') ? '' : '/'}${relativeUrl}`;
 };
 
-export const createLesson = async ({ pdfFile, topic, level, timeMinutes, goal, language, forceWebSearch }) => {
+export const createLesson = async ({
+  documentFile,
+  pdfFile,
+  topic,
+  level,
+  timeMinutes,
+  goal,
+  language,
+  teachingStyle,
+  existingKnowledge,
+  forceWebSearch
+}) => {
   const formData = new FormData();
-  if (pdfFile) {
-    formData.append('pdf_file', pdfFile);
+  const fileToUpload = documentFile || pdfFile;
+  if (fileToUpload) {
+    formData.append('document_file', fileToUpload);
   }
   if (topic) {
     formData.append('topic', topic);
@@ -26,6 +38,12 @@ export const createLesson = async ({ pdfFile, topic, level, timeMinutes, goal, l
   formData.append('time_minutes', timeMinutes || 10);
   formData.append('goal', goal || 'understand');
   formData.append('language', language || 'en');
+  if (teachingStyle) {
+    formData.append('teaching_style', teachingStyle);
+  }
+  if (existingKnowledge) {
+    formData.append('existing_knowledge', existingKnowledge);
+  }
   if (forceWebSearch) {
     formData.append('force_web_search', 'true');
   }
@@ -33,6 +51,20 @@ export const createLesson = async ({ pdfFile, topic, level, timeMinutes, goal, l
   const res = await api.post('/api/lesson/create', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+  return res.data;
+};
+
+export const switchLanguage = async ({ lessonId, newLanguage, currentSegmentIndex }) => {
+  const res = await api.post(`/api/lesson/${lessonId}/switch-language`, {
+    lesson_id: lessonId,
+    new_language: newLanguage,
+    current_segment_index: currentSegmentIndex || 0,
+  });
+  return res.data;
+};
+
+export const getLearnerProgress = async () => {
+  const res = await api.get('/api/lesson/progress');
   return res.data;
 };
 
@@ -91,3 +123,29 @@ export const checkHealth = async () => {
     return { status: 'offline', gpu_available: false, device: 'unknown' };
   }
 };
+
+export const getStudentProfile = async () => {
+  const res = await api.get('/api/profile');
+  return res.data;
+};
+
+export const updateStudentProfile = async (profileData) => {
+  const res = await api.post('/api/profile', profileData);
+  return res.data;
+};
+
+export const recordLessonCompletion = async ({ topic, durationMinutes, quizScorePercentage, language }) => {
+  const res = await api.post('/api/profile/record-lesson', {
+    topic,
+    duration_minutes: durationMinutes,
+    quiz_score_percentage: quizScorePercentage,
+    language,
+  });
+  return res.data;
+};
+
+export const updateStudyPlan = async (studyPlan) => {
+  const res = await api.post('/api/profile/study-plan', { study_plan: studyPlan });
+  return res.data;
+};
+

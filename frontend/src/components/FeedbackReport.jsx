@@ -185,6 +185,54 @@ export default function FeedbackReport({ report, sources, sourceRoute, onStartNe
         </div>
       )}
 
+      {/* 7-Day Master Study Roadmap */}
+      {report.study_roadmap_7_days && report.study_roadmap_7_days.length > 0 && (
+        <div className="report-recs-card glass-panel" style={{ borderLeft: '4px solid #8b5cf6' }}>
+          <div className="card-heading text-indigo">
+            <Sparkles size={20} />
+            <h3>7-Day Structured Mastery Curriculum</h3>
+          </div>
+          <div className="roadmap-grid">
+            {report.study_roadmap_7_days.map((dayPlan) => (
+              <div key={dayPlan.day} className="roadmap-day-card">
+                <div className="day-card-badge">Day {dayPlan.day} • {dayPlan.duration_minutes}m</div>
+                <h4 className="day-card-title">{dayPlan.title}</h4>
+                <div className="day-card-meta">
+                  <p><strong>Practice:</strong> {dayPlan.practice_goals}</p>
+                  <p><strong>Revision:</strong> {dayPlan.revision_schedule}</p>
+                  <span className="day-check-tag">{dayPlan.assessment_type}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Hierarchical Learning Path Progression */}
+      {report.learning_path && report.learning_path.length > 0 && (
+        <div className="report-recs-card glass-panel" style={{ borderLeft: '4px solid #10b981' }}>
+          <div className="card-heading text-emerald">
+            <Compass size={20} />
+            <h3>Longitudinal Mastery Learning Path</h3>
+          </div>
+          <div className="learning-path-stepper">
+            {report.learning_path.map((node) => (
+              <div key={node.step} className={`stepper-node ${node.status}`}>
+                <div className="stepper-dot">
+                  {node.status === 'completed' ? '✓' : node.step}
+                </div>
+                <div className="stepper-content">
+                  <div className="stepper-title">{node.topic}</div>
+                  <span className={`stepper-badge ${node.status}`}>
+                    {node.status === 'completed' ? 'Mastered' : (node.status === 'current' ? 'In Progress' : 'Upcoming')}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Next Recommended Topic Banner */}
       {report.next_recommended_topic && (
         <div className="next-topic-banner glass-panel glass-panel-glow">

@@ -147,7 +147,28 @@ class VideoAssembler:
                     draw.rounded_rectangle(badge_rect, radius=8, fill=(30, 41, 59), outline=(99, 102, 241), width=1)
                     draw.text((self.width - 165, 34), f"PART {segment_index} OF {total_segments}", font=small_font, fill=(147, 197, 253))
 
-                # --- LEFT COLUMN: AVATAR CARD ---
+                # Determine dynamic teaching pose based on lesson progress & pedagogy
+                prog = frame_idx / float(total_frames)
+                if is_remediation:
+                    if prog < 0.18:
+                        pose = "remediate"
+                    elif prog < 0.52:
+                        pose = "point_board"
+                    elif prog < 0.82:
+                        pose = "explain"
+                    else:
+                        pose = "welcome"
+                else:
+                    if prog < 0.15:
+                        pose = "welcome"
+                    elif prog < 0.48:
+                        pose = "point_board"
+                    elif prog < 0.82:
+                        pose = "explain"
+                    else:
+                        pose = "welcome"
+
+                # --- LEFT COLUMN: CLASSROOM TEACHER PRESENTATION ---
                 avatar_w = 340
                 avatar_h = 470
                 avatar_x = 30
@@ -158,23 +179,26 @@ class VideoAssembler:
                     size=(avatar_w, avatar_h),
                     amplitude=amp,
                     frame_idx=frame_idx,
-                    fps=self.fps
+                    fps=self.fps,
+                    pose=pose
                 )
                 frame.paste(avatar_img, (avatar_x, avatar_y), mask=avatar_img)
 
-                # Name Tag on Avatar
+                # Name Tag on Teacher Podium
                 tag_rect = [avatar_x + 20, avatar_y + avatar_h - 48, avatar_x + avatar_w - 20, avatar_y + avatar_h - 16]
                 draw.rounded_rectangle(tag_rect, radius=6, fill=(15, 23, 42), outline=(79, 70, 229), width=1)
-                draw.text((avatar_x + 36, avatar_y + avatar_h - 44), "Dr. Nova • AI Instructor", font=small_font, fill=(226, 232, 240))
+                pose_label = "Teaching" if pose in ["explain", "welcome"] else "Focus on Board 👉" if pose == "point_board" else "Re-explaining 💡" if pose == "remediate" else "Observing"
+                draw.text((avatar_x + 28, avatar_y + avatar_h - 44), f"Dr. Nova • {pose_label}", font=small_font, fill=(226, 232, 240))
 
-                # --- RIGHT COLUMN: VISUAL SLIDE DECK ---
+                # --- RIGHT COLUMN: SMART TEACHING BOARD ---
                 slide_x = 395
                 slide_y = 85
                 slide_w = self.width - slide_x - 30
                 slide_h = 470
 
                 slide_rect = [slide_x, slide_y, slide_x + slide_w, slide_y + slide_h]
-                draw.rounded_rectangle(slide_rect, radius=18, fill=(17, 24, 39), outline=(55, 65, 81), width=1)
+                board_outline = (99, 102, 241) if pose == "point_board" else (55, 65, 81)
+                draw.rounded_rectangle(slide_rect, radius=18, fill=(17, 24, 39), outline=board_outline, width=2 if pose == "point_board" else 1)
 
                 # Segment Title & Visual Type Badge
                 seg_title = segment.title
@@ -197,32 +221,40 @@ class VideoAssembler:
                 kp_y = slide_y + 76
                 key_points = segment.key_points if segment.key_points else ["Understand fundamental concept", "Apply practical reasoning", "Verify key mechanism"]
                 for k_i, point in enumerate(key_points[:2]):
-                    # Card box
+                    # Card box (Active pulse if teacher is pointing in first half of pointing phase)
+                    is_kp_focus = (pose == "point_board" and k_i == 0)
+                    card_border = (251, 191, 36) if is_kp_focus else (51, 65, 85)
                     card_r = [slide_x + 28, kp_y, slide_x + slide_w - 28, kp_y + 54]
-                    draw.rounded_rectangle(card_r, radius=8, fill=(26, 34, 52), outline=(51, 65, 85), width=1)
+                    draw.rounded_rectangle(card_r, radius=8, fill=(26, 34, 52), outline=card_border, width=2 if is_kp_focus else 1)
 
                     # Number badge
                     badge_box = [slide_x + 38, kp_y + 12, slide_x + 66, kp_y + 42]
-                    badge_fill = (99, 102, 241) if not is_remediation else (217, 119, 6)
+                    badge_fill = (251, 191, 36) if is_kp_focus else ((99, 102, 241) if not is_remediation else (217, 119, 6))
                     draw.rounded_rectangle(badge_box, radius=5, fill=badge_fill)
-                    draw.text((slide_x + 48, kp_y + 16), str(k_i + 1), font=heading_font, fill=(255, 255, 255))
+                    draw.text((slide_x + 48, kp_y + 16), str(k_i + 1), font=heading_font, fill=(15, 23, 42) if is_kp_focus else (255, 255, 255))
 
                     # Point text
                     wrapped_point = textwrap.shorten(point, width=62, placeholder="...")
-                    draw.text((slide_x + 78, kp_y + 16), wrapped_point, font=body_font, fill=(226, 232, 240))
+                    draw.text((slide_x + 78, kp_y + 16), wrapped_point, font=body_font, fill=(248, 250, 252) if is_kp_focus else (226, 232, 240))
 
                     kp_y += 62
 
                 # Subject-Aware Code / Math / Formula / Process Card
                 code_or_math = getattr(segment, "visual_code_or_math", "") or getattr(segment, "visual_description", "")
                 if code_or_math:
+                    is_math_focus = (pose == "point_board")
+                    cm_border = (251, 191, 36) if is_math_focus else (79, 70, 229)
                     cm_rect = [slide_x + 28, kp_y, slide_x + slide_w - 28, kp_y + 56]
-                    draw.rounded_rectangle(cm_rect, radius=8, fill=(15, 23, 42), outline=(79, 70, 229), width=1)
-                    draw.text((slide_x + 40, kp_y + 6), f"⚙️ {v_type} SPECIFICATION:", font=small_font, fill=(129, 140, 248))
+                    draw.rounded_rectangle(cm_rect, radius=8, fill=(15, 23, 42), outline=cm_border, width=2 if is_math_focus else 1)
+                    
+                    header_label = f"⚙️ {v_type} SPECIFICATION"
+                    if is_math_focus:
+                        header_label += "  [👉 TEACHER FOCUS]"
+                    draw.text((slide_x + 40, kp_y + 6), header_label, font=small_font, fill=(251, 191, 36) if is_math_focus else (129, 140, 248))
                     cm_snippet = textwrap.shorten(str(code_or_math), width=65, placeholder="...")
                     draw.text((slide_x + 40, kp_y + 26), cm_snippet, font=body_font, fill=(248, 250, 252))
 
-                # Analogy / Example Box at Bottom of Slide
+                # Analogy / Example Box at Bottom of Smartboard
                 if segment.example:
                     ex_rect = [slide_x + 28, slide_y + slide_h - 96, slide_x + slide_w - 28, slide_y + slide_h - 18]
                     draw.rounded_rectangle(ex_rect, radius=10, fill=(30, 27, 75) if not is_remediation else (69, 26, 3), outline=(129, 140, 248) if not is_remediation else (245, 158, 11), width=1)

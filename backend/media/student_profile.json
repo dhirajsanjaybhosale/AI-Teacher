@@ -1,0 +1,373 @@
+{
+  "personal_info": {
+    "full_name": "Dhiraj Bhosale",
+    "education_level": "Undergraduate",
+    "institution": "MMCOE Pune",
+    "course": "B.Tech",
+    "branch": "Information Technology",
+    "year": "3rd Year",
+    "semester": 6,
+    "subjects": [
+      "Data Structures",
+      "DBMS",
+      "Operating Systems",
+      "Computer Networks",
+      "Programming"
+    ],
+    "status": "Active learner",
+    "avatar_initials": "DB"
+  },
+  "learning_profile": {
+    "preferred_language": "hinglish",
+    "learning_goals": [
+      "Exam Preparation",
+      "Concept Understanding"
+    ],
+    "learning_styles": [
+      "Visual",
+      "Practical",
+      "Step-by-step",
+      "Analogy based"
+    ],
+    "current_level": "intermediate",
+    "daily_study_time_minutes": 75,
+    "preferred_difficulty": "adaptive"
+  },
+  "overall_mastery": 78,
+  "quiz_average": 86,
+  "lessons_completed": 26,
+  "hours_learned": 38.8,
+  "learning_streak_days": 7,
+  "today_goal_completed": 3,
+  "today_goal_total": 4,
+  "today_study_time_minutes": 42,
+  "continue_learning_topic": "Depth-First Search (DFS)",
+  "continue_learning_progress": 98,
+  "continue_learning_time_remaining": 12,
+  "ai_recommendation": "Revise Graph Representation before starting DFS.",
+  "ai_recommendation_reason": "You had difficulty with graph representation in your last lesson.",
+  "ai_recommendation_topic": "Graph Representation",
+  "subjects_mastery": [
+    {
+      "subject": "Data Structures",
+      "overall_percentage": 82,
+      "topics": [
+        {
+          "name": "Arrays",
+          "mastery_percentage": 92,
+          "is_completed": true,
+          "status": "mastered",
+          "last_attempted": "3 days ago"
+        },
+        {
+          "name": "Stacks & Queues",
+          "mastery_percentage": 88,
+          "is_completed": true,
+          "status": "mastered",
+          "last_attempted": "5 days ago"
+        },
+        {
+          "name": "Linked Lists",
+          "mastery_percentage": 81,
+          "is_completed": true,
+          "status": "mastered",
+          "last_attempted": "1 week ago"
+        },
+        {
+          "name": "Binary Trees",
+          "mastery_percentage": 67,
+          "is_completed": false,
+          "status": "in_progress",
+          "last_attempted": "2 days ago"
+        },
+        {
+          "name": "Dynamic Programming",
+          "mastery_percentage": 52,
+          "is_completed": false,
+          "status": "needs_improvement",
+          "last_attempted": "Yesterday"
+        },
+        {
+          "name": "Graph Traversal",
+          "mastery_percentage": 48,
+          "is_completed": false,
+          "status": "needs_improvement",
+          "last_attempted": "Yesterday"
+        }
+      ]
+    },
+    {
+      "subject": "DBMS",
+      "overall_percentage": 76,
+      "topics": [
+        {
+          "name": "SQL Queries",
+          "mastery_percentage": 88,
+          "is_completed": true,
+          "status": "mastered",
+          "last_attempted": "4 days ago"
+        },
+        {
+          "name": "Normalization",
+          "mastery_percentage": 82,
+          "is_completed": true,
+          "status": "mastered",
+          "last_attempted": "Yesterday"
+        },
+        {
+          "name": "B-Tree Indexing",
+          "mastery_percentage": 70,
+          "is_completed": false,
+          "status": "in_progress",
+          "last_attempted": "2 weeks ago"
+        },
+        {
+          "name": "ACID Transactions",
+          "mastery_percentage": 64,
+          "is_completed": false,
+          "status": "needs_improvement",
+          "last_attempted": "3 days ago"
+        }
+      ]
+    },
+    {
+      "subject": "Operating Systems",
+      "overall_percentage": 68,
+      "topics": [
+        {
+          "name": "Process Scheduling",
+          "mastery_percentage": 75,
+          "is_completed": true,
+          "status": "in_progress",
+          "last_attempted": "4 days ago"
+        },
+        {
+          "name": "Deadlocks",
+          "mastery_percentage": 68,
+          "is_completed": false,
+          "status": "in_progress",
+          "last_attempted": "1 week ago"
+        },
+        {
+          "name": "Memory Management & Paging",
+          "mastery_percentage": 61,
+          "is_completed": false,
+          "status": "needs_improvement",
+          "last_attempted": "5 days ago"
+        }
+      ]
+    },
+    {
+      "subject": "Computer Networks",
+      "overall_percentage": 74,
+      "topics": [
+        {
+          "name": "OSI & TCP/IP Model",
+          "mastery_percentage": 85,
+          "is_completed": true,
+          "status": "mastered",
+          "last_attempted": "1 week ago"
+        },
+        {
+          "name": "TCP vs UDP",
+          "mastery_percentage": 80,
+          "is_completed": true,
+          "status": "mastered",
+          "last_attempted": "3 days ago"
+        },
+        {
+          "name": "Routing Protocols",
+          "mastery_percentage": 58,
+          "is_completed": false,
+          "status": "needs_improvement",
+          "last_attempted": "2 days ago"
+        }
+      ]
+    },
+    {
+      "subject": "Programming",
+      "overall_percentage": 91,
+      "topics": [
+        {
+          "name": "OOP Principles",
+          "mastery_percentage": 84,
+          "is_completed": true,
+          "status": "mastered",
+          "last_attempted": "5 days ago"
+        },
+        {
+          "name": "React Hooks",
+          "mastery_percentage": 81,
+          "is_completed": true,
+          "status": "mastered",
+          "last_attempted": "2 days ago"
+        },
+        {
+          "name": "Recursion & Backtracking",
+          "mastery_percentage": 88,
+          "is_completed": true,
+          "status": "mastered",
+          "last_attempted": "4 days ago"
+        }
+      ]
+    }
+  ],
+  "misconceptions": [
+    {
+      "concept": "Graph Traversal",
+      "misconception": "Confused adjacency list space complexity with adjacency matrix",
+      "attempts": 2,
+      "mastery_percentage": 48,
+      "last_attempted": "Yesterday",
+      "ai_recommendation": "Revise Graph Representation before starting DFS."
+    },
+    {
+      "concept": "Ohm's Law",
+      "misconception": "Student believes current increases when resistance increases, confusing inverse with direct proportionality.",
+      "attempts": 2,
+      "mastery_percentage": 68,
+      "last_attempted": "2 days ago",
+      "ai_recommendation": "Review water-pipe pressure analogy for electrical resistance."
+    },
+    {
+      "concept": "Cellular Respiration",
+      "misconception": "Student confused the source of oxygen with CO2 carbon fixation rather than water photolysis.",
+      "attempts": 1,
+      "mastery_percentage": 72,
+      "last_attempted": "4 days ago",
+      "ai_recommendation": "Focus on light-dependent reaction photolysis step."
+    }
+  ],
+  "learning_history": [
+    {
+      "topic": "Depth-First Search (DFS)",
+      "date": "Today",
+      "duration_minutes": 25,
+      "quiz_score_percentage": 92,
+      "mastery_delta": "+9%",
+      "language": "Hinglish",
+      "status": "Completed"
+    },
+    {
+      "topic": "Depth-First Search (DFS)",
+      "date": "Today",
+      "duration_minutes": 25,
+      "quiz_score_percentage": 92,
+      "mastery_delta": "+9%",
+      "language": "Hinglish",
+      "status": "Completed"
+    },
+    {
+      "topic": "Binary Search",
+      "date": "Today",
+      "duration_minutes": 20,
+      "quiz_score_percentage": 90,
+      "mastery_delta": "+8%",
+      "language": "Hinglish",
+      "status": "Completed"
+    },
+    {
+      "topic": "DBMS Normalization",
+      "date": "Yesterday",
+      "duration_minutes": 30,
+      "quiz_score_percentage": 82,
+      "mastery_delta": "+5%",
+      "language": "English",
+      "status": "Completed"
+    },
+    {
+      "topic": "React Hooks",
+      "date": "2 days ago",
+      "duration_minutes": 20,
+      "quiz_score_percentage": 94,
+      "mastery_delta": "+10%",
+      "language": "Hinglish",
+      "status": "Completed"
+    },
+    {
+      "topic": "TCP vs UDP",
+      "date": "3 days ago",
+      "duration_minutes": 25,
+      "quiz_score_percentage": 88,
+      "mastery_delta": "+6%",
+      "language": "English",
+      "status": "Completed"
+    },
+    {
+      "topic": "Photosynthesis & Solar Conversion",
+      "date": "4 days ago",
+      "duration_minutes": 22,
+      "quiz_score_percentage": 85,
+      "mastery_delta": "+7%",
+      "language": "Hindi",
+      "status": "Completed"
+    },
+    {
+      "topic": "Introduction to Electricity & Ohm's Law",
+      "date": "5 days ago",
+      "duration_minutes": 32,
+      "quiz_score_percentage": 100,
+      "mastery_delta": "+12%",
+      "language": "English",
+      "status": "Completed"
+    }
+  ],
+  "study_plan": [
+    {
+      "day_name": "Monday",
+      "topic": "Graph Representation",
+      "duration_minutes": 30,
+      "is_completed": true
+    },
+    {
+      "day_name": "Tuesday",
+      "topic": "BFS",
+      "duration_minutes": 40,
+      "is_completed": false
+    }
+  ],
+  "learning_path": [
+    {
+      "id": 1,
+      "name": "Programming Fundamentals",
+      "status": "completed",
+      "topics_count": 8
+    },
+    {
+      "id": 2,
+      "name": "OOP Principles",
+      "status": "completed",
+      "topics_count": 6
+    },
+    {
+      "id": 3,
+      "name": "Arrays & Strings",
+      "status": "completed",
+      "topics_count": 10
+    },
+    {
+      "id": 4,
+      "name": "Linked Lists & Stacks",
+      "status": "completed",
+      "topics_count": 7
+    },
+    {
+      "id": 5,
+      "name": "Binary Trees & BST",
+      "status": "current",
+      "topics_count": 9
+    },
+    {
+      "id": 6,
+      "name": "Graphs & Traversals",
+      "status": "locked",
+      "topics_count": 8
+    },
+    {
+      "id": 7,
+      "name": "Dynamic Programming & Advanced Algorithms",
+      "status": "locked",
+      "topics_count": 12
+    }
+  ]
+}

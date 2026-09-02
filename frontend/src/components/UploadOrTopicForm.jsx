@@ -10,18 +10,21 @@ const PRESET_TOPICS = [
   { title: "Explain TCP vs UDP", category: "Networking", query: "Explain TCP vs UDP." },
   { title: "Why is the sky blue?", category: "Optics / Physics", query: "Why is the sky blue?" },
   { title: "Explain photosynthesis in Hindi", category: "Hindi (हिंदी)", query: "Explain photosynthesis in Hindi." },
-  { title: "Teach me Python from beginner level", category: "Programming", query: "Teach me Python from beginner level." },
-  { title: "Explain DBMS Normalization", category: "Database", query: "Explain DBMS normalization." }
+  { title: "Explain Ohm's Law in Hinglish", category: "Hinglish (हिंदी + Eng)", query: "Explain Ohm's Law in Hinglish." },
+  { title: "7-Day Mastery Curriculum for Photosynthesis", category: "7-Day Roadmap", query: "7-Day Mastery Curriculum for Photosynthesis." },
+  { title: "Teach me Python from beginner level", category: "Programming", query: "Teach me Python from beginner level." }
 ];
 
 export default function UploadOrTopicForm({ onSubmit, isLoading }) {
   const [activeTab, setActiveTab] = useState('topic'); // 'topic' or 'pdf'
-  const [pdfFile, setPdfFile] = useState(null);
+  const [docFile, setDocFile] = useState(null);
   const [topicText, setTopicText] = useState('');
   const [level, setLevel] = useState('beginner');
   const [timeMinutes, setTimeMinutes] = useState(10);
   const [goal, setGoal] = useState('understand');
   const [language, setLanguage] = useState('en');
+  const [teachingStyle, setTeachingStyle] = useState('Simple');
+  const [existingKnowledge, setExistingKnowledge] = useState('');
   const [forceWebSearch, setForceWebSearch] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef(null);
@@ -31,15 +34,13 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       const file = e.dataTransfer.files[0];
-      if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
-        setPdfFile(file);
-      }
+      setDocFile(file);
     }
   };
 
   const handleFileChange = (e) => {
     if (e.target.files && e.target.files[0]) {
-      setPdfFile(e.target.files[0]);
+      setDocFile(e.target.files[0]);
     }
   };
 
@@ -49,26 +50,26 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
       if (res.ok) {
         const blob = await res.blob();
         const file = new File([blob], sampleName, { type: "application/pdf" });
-        setPdfFile(file);
+        setDocFile(file);
       } else {
         const sampleBlob = new Blob([`Sample Chapter Content for ${title}`], { type: "application/pdf" });
         const sampleFile = new File([sampleBlob], sampleName, { type: "application/pdf" });
-        setPdfFile(sampleFile);
+        setDocFile(sampleFile);
       }
       setActiveTab('pdf');
     } catch (err) {
       console.error("Error loading sample PDF:", err);
       const sampleBlob = new Blob([`Sample Chapter Content for ${title}`], { type: "application/pdf" });
       const sampleFile = new File([sampleBlob], sampleName, { type: "application/pdf" });
-      setPdfFile(sampleFile);
+      setDocFile(sampleFile);
       setActiveTab('pdf');
     }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (activeTab === 'pdf' && !pdfFile) {
-      alert("Please select or drop a PDF file, or choose a sample PDF.");
+    if (activeTab === 'pdf' && !docFile) {
+      alert("Please select or drop a PDF, DOCX, PPTX, or TXT file, or choose a benchmark chapter.");
       return;
     }
     if (activeTab === 'topic' && !topicText.trim()) {
@@ -77,12 +78,15 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
     }
 
     onSubmit({
-      pdfFile: activeTab === 'pdf' ? pdfFile : null,
-      topic: activeTab === 'topic' ? topicText : (pdfFile ? pdfFile.name.replace('.pdf', '') : ''),
+      documentFile: activeTab === 'pdf' ? docFile : null,
+      pdfFile: activeTab === 'pdf' ? docFile : null,
+      topic: activeTab === 'topic' ? topicText : (docFile ? docFile.name.replace(/\.[^/.]+$/, '') : ''),
       level,
       timeMinutes,
       goal,
       language,
+      teachingStyle,
+      existingKnowledge,
       forceWebSearch
     });
   };
@@ -194,11 +198,11 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
           </div>
         )}
 
-        {/* Tab Content: PDF Dropzone */}
+        {/* Tab Content: Document Dropzone */}
         {activeTab === 'pdf' && (
           <div className="tab-section">
             <div
-              className={`dropzone ${isDragging ? 'dragging' : ''} ${pdfFile ? 'has-file' : ''}`}
+              className={`dropzone ${isDragging ? 'dragging' : ''} ${docFile ? 'has-file' : ''}`}
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleFileDrop}
@@ -207,19 +211,19 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,application/pdf"
+                accept=".pdf,.docx,.pptx,.txt,.md"
                 className="hidden-file-input"
                 onChange={handleFileChange}
               />
               
-              {pdfFile ? (
+              {docFile ? (
                 <div className="file-info-box">
                   <div className="file-icon-box">
                     <FileText size={32} className="text-indigo" />
                   </div>
                   <div className="file-details">
-                    <p className="file-name">{pdfFile.name}</p>
-                    <p className="file-size">{(pdfFile.size / 1024).toFixed(1)} KB • Grounded RAG Ingestion Active</p>
+                    <p className="file-name">{docFile.name}</p>
+                    <p className="file-size">{(docFile.size / 1024).toFixed(1)} KB • Universal Document RAG Ingestion Active</p>
                   </div>
                   <span className="file-badge">Selected</span>
                 </div>
@@ -228,8 +232,8 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
                   <div className="upload-icon-circle">
                     <Upload size={28} />
                   </div>
-                  <p className="drop-title">Drag & drop your PDF chapter here</p>
-                  <p className="drop-sub">or click to browse local files for vector grounding</p>
+                  <p className="drop-title">Drag & drop your Document here (PDF, Word, PPT, TXT)</p>
+                  <p className="drop-sub">Supported: .pdf, .docx, .pptx, .txt, .md for vector grounding</p>
                 </div>
               )}
             </div>
@@ -256,6 +260,21 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
             </div>
           </div>
         )}
+
+        {/* Existing Knowledge Input */}
+        <div className="existing-knowledge-section">
+          <label className="pref-label">
+            <BookOpen size={16} />
+            <span>What do you already know? (Optional Prior Knowledge)</span>
+          </label>
+          <input
+            type="text"
+            className="input-field"
+            placeholder="e.g. 'I know basic arithmetic, but struggle with circuit diagrams' or 'None'"
+            value={existingKnowledge}
+            onChange={(e) => setExistingKnowledge(e.target.value)}
+          />
+        </div>
 
         {/* Preferences Grid */}
         <div className="pref-grid">
@@ -291,11 +310,12 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
             </label>
             <div className="pill-group">
               {[
-                { mins: 5, segs: '2 segs' },
-                { mins: 10, segs: '3 segs' },
-                { mins: 20, segs: '4 segs' },
-                { mins: 30, segs: '5 segs' },
-                { mins: 60, segs: '6 segs' }
+                { mins: 5, label: '5m', segs: '2 segs' },
+                { mins: 10, label: '10m', segs: '3 segs' },
+                { mins: 20, label: '20m', segs: '4 segs' },
+                { mins: 30, label: '30m', segs: '5 segs' },
+                { mins: 60, label: '60m', segs: '6 segs' },
+                { mins: 10080, label: '7-Day Plan', segs: 'Roadmap' }
               ].map((t) => (
                 <button
                   key={t.mins}
@@ -303,32 +323,28 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
                   className={`pill-btn ${timeMinutes === t.mins ? 'active' : ''}`}
                   onClick={() => setTimeMinutes(t.mins)}
                 >
-                  <span className="pill-title">{t.mins}m</span>
+                  <span className="pill-title">{t.label}</span>
                   <span className="pill-sub">{t.segs}</span>
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Learning Goal */}
+          {/* Teaching Style */}
           <div className="pref-box">
             <label className="pref-label">
               <Sparkles size={16} />
-              <span>Learning Goal</span>
+              <span>Teaching Style</span>
             </label>
             <div className="pill-group">
-              {[
-                { id: 'understand', label: 'Intuition' },
-                { id: 'exam', label: 'Exam Prep' },
-                { id: 'interview', label: 'Interview Depth' }
-              ].map((g) => (
+              {['Simple', 'Detailed', 'Visual', 'Practical', 'Socratic', 'Exam-focused'].map((style) => (
                 <button
-                  key={g.id}
+                  key={style}
                   type="button"
-                  className={`pill-btn ${goal === g.id ? 'active' : ''}`}
-                  onClick={() => setGoal(g.id)}
+                  className={`pill-btn ${teachingStyle === style ? 'active' : ''}`}
+                  onClick={() => setTeachingStyle(style)}
                 >
-                  <span className="pill-title">{g.label}</span>
+                  <span className="pill-title">{style}</span>
                 </button>
               ))}
             </div>
@@ -343,7 +359,8 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
             <div className="pill-group">
               {[
                 { code: 'en', label: 'English', flag: '🇬🇧' },
-                { code: 'hi', label: 'Hindi (हिंदी)', flag: '🇮🇳' }
+                { code: 'hi', label: 'Hindi (हिंदी)', flag: '🇮🇳' },
+                { code: 'hinglish', label: 'Hinglish', flag: '🇮🇳' }
               ].map((lang) => (
                 <button
                   key={lang.code}
@@ -365,7 +382,7 @@ export default function UploadOrTopicForm({ onSubmit, isLoading }) {
           className="btn-primary-cta"
           disabled={isLoading}
         >
-          <span>{isLoading ? 'Synthesizing Lesson...' : 'Launch Interactive AI Teacher Lesson'}</span>
+          <span>{isLoading ? 'Synthesizing Lesson & Grounding...' : 'Launch Interactive AI Teacher Lesson'}</span>
           <ArrowRight size={20} />
         </button>
       </form>

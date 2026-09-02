@@ -1,10 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
-import UploadOrTopicForm from './components/UploadOrTopicForm';
-import VideoPlayer from './components/VideoPlayer';
-import QuestionPrompt from './components/QuestionPrompt';
-import QuizView from './components/QuizView';
-import FeedbackReport from './components/FeedbackReport';
+import Sidebar from './components/layout/Sidebar';
+import TopHeader from './components/layout/TopHeader';
+import StudentDashboard from './components/dashboard/StudentDashboard';
+import LearnInputView from './components/learn/LearnInputView';
+import ClassroomView from './components/classroom/ClassroomView';
+import ProgressView from './components/progress/ProgressView';
+import LearningPathView from './components/roadmap/LearningPathView';
+import StudyPlanView from './components/study_plan/StudyPlanView';
+import StudentProfileView from './components/profile/StudentProfileView';
+import SettingsView from './components/settings/SettingsView';
+import DeveloperModeModal from './components/settings/DeveloperModeModal';
 import LoadingOverlay from './components/LoadingOverlay';
 
 import {
@@ -13,27 +18,35 @@ import {
   submitAnswer,
   getQuiz,
   submitQuiz,
-  checkHealth
+  checkHealth,
+  switchLanguage,
+  getStudentProfile,
+  updateStudentProfile,
+  updateStudyPlan
 } from './api/client';
 
 import './App.css';
 
 export default function App() {
-  // Navigation / View State
-  const [viewState, setViewState] = useState('onboarding'); // 'onboarding' | 'lesson' | 'quiz' | 'report'
+  // Navigation: 'dashboard' | 'learn' | 'classroom' | 'progress' | 'path' | 'study_plan' | 'profile' | 'settings'
+  const [activeNav, setActiveNav] = useState('dashboard');
+  const [developerMode, setDeveloperMode] = useState(false);
+  const [isDevConsoleOpen, setIsDevConsoleOpen] = useState(false);
   const [systemHealth, setSystemHealth] = useState(null);
 
-  // Lesson State
+  // Student Profile Persistent State
+  const [studentProfile, setStudentProfile] = useState(null);
+
+  // Classroom Session State
   const [activeLesson, setActiveLesson] = useState(null);
   const [currentSegmentIndex, setCurrentSegmentIndex] = useState(0);
   const [isRemediationMode, setIsRemediationMode] = useState(false);
   const [remediationSegment, setRemediationSegment] = useState(null);
-
-  // Interaction State
   const [evaluationResult, setEvaluationResult] = useState(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
 
-  // Quiz & Report State
+  // Classroom View State ('lesson' | 'quiz' | 'report')
+  const [classroomViewState, setClassroomViewState] = useState('lesson');
   const [quiz, setQuiz] = useState(null);
   const [isSubmittingQuiz, setIsSubmittingQuiz] = useState(false);
   const [report, setReport] = useState(null);
@@ -42,31 +55,121 @@ export default function App() {
   const [isLoadingLesson, setIsLoadingLesson] = useState(false);
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
 
-  // Initial Health Check
+  // Search buffer from TopHeader
+  const [pendingSearchQuery, setPendingSearchQuery] = useState('');
+
+  // Initial Load: Health check & Student Profile
   useEffect(() => {
     checkHealth().then((data) => setSystemHealth(data));
+    getStudentProfile()
+      .then((data) => setStudentProfile(data))
+      .catch((err) => console.error("Could not fetch student profile:", err));
   }, []);
 
-  // 1. Create Lesson
+  // Update Profile Handler
+  const handleUpdateProfile = async (updateData) => {
+    try {
+      const updated = await updateStudentProfile(updateData);
+      setStudentProfile(updated);
+    } catch (err) {
+      console.error("Failed to update student profile:", err);
+    }
+  };
+
+  // Update Study Plan Handler
+  const handleUpdateStudyPlan = async (plan) => {
+    try {
+      await updateStudyPlan(plan);
+      if (studentProfile) {
+        setStudentProfile({ ...studentProfile, study_plan: plan });
+      }
+    } catch (err) {
+      console.error("Failed to update study plan:", err);
+    }
+  };
+
+  // 1. Create or Launch Lesson
   const handleCreateLesson = async (params) => {
     setIsLoadingLesson(true);
     try {
-      const lessonData = await createLesson(params);
+      const lessonData = await createLesson({
+        ...params,
+        level: params.level || studentProfile?.learning_profile?.current_level || 'intermediate',
+        language: params.language || studentProfile?.learning_profile?.preferred_language || 'hinglish',
+        goal: params.goal || studentProfile?.learning_profile?.learning_goals?.[0] || 'understand',
+        teachingStyle: params.teachingStyle || studentProfile?.learning_profile?.learning_styles?.[0] || 'Visual'
+      });
+
       setActiveLesson(lessonData);
       setCurrentSegmentIndex(0);
       setIsRemediationMode(false);
       setRemediationSegment(null);
       setEvaluationResult(null);
-      setViewState('lesson');
+      setQuiz(null);
+      setReport(null);
+      setClassroomViewState('lesson');
+      setActiveNav('classroom');
+
+      // Refresh profile to reflect active lesson
+      getStudentProfile().then((data) => setStudentProfile(data));
     } catch (err) {
       console.error("Error creating lesson:", err);
-      alert("Failed to generate lesson. Please check backend connection.");
+      alert("Unable to generate classroom lesson. Please check your server connection.");
     } finally {
       setIsLoadingLesson(false);
     }
   };
 
-  // 2. Submit Formative Check Answer
+  // Start Topic from Pill, Recommendation, or Streak Card
+  const handleStartTopic = (topicName) => {
+    handleCreateLesson({ topic: topicName });
+  };
+
+  // Continue Active or Recent Lesson
+  const handleContinueLesson = (topicName) => {
+    if (activeLesson && activeLesson.title.toLowerCase().includes((topicName || '').toLowerCase())) {
+      setActiveNav('classroom');
+      setClassroomViewState('lesson');
+    } else {
+      handleCreateLesson({ topic: topicName || 'Binary Search' });
+    }
+  };
+
+  // Global Search from TopHeader
+  const handleGlobalSearch = (query) => {
+    setPendingSearchQuery(query);
+    setActiveNav('learn');
+  };
+
+  // Switch Language
+  const handleSwitchLanguage = async (newLang) => {
+    if (studentProfile) {
+      handleUpdateProfile({
+        learning_profile: {
+          ...studentProfile.learning_profile,
+          preferred_language: newLang
+        }
+      });
+    }
+
+    if (activeLesson) {
+      setIsLoadingVideo(true);
+      try {
+        const updatedLesson = await switchLanguage({
+          lessonId: activeLesson.lesson_id,
+          newLanguage: newLang,
+          currentSegmentIndex
+        });
+        setActiveLesson(updatedLesson);
+      } catch (err) {
+        console.error("Language switch delay:", err);
+      } finally {
+        setIsLoadingVideo(false);
+      }
+    }
+  };
+
+  // 2. Formative Answer Submission
   const handleSubmitAnswer = async (userAnswer) => {
     if (!activeLesson) return;
     setIsEvaluating(true);
@@ -83,9 +186,11 @@ export default function App() {
       });
 
       setEvaluationResult(evalData);
+      // Refresh student profile after evaluation
+      getStudentProfile().then((data) => setStudentProfile(data));
     } catch (err) {
       console.error("Error submitting answer:", err);
-      alert("Failed to evaluate answer.");
+      alert("Failed to evaluate your answer.");
     } finally {
       setIsEvaluating(false);
     }
@@ -95,10 +200,10 @@ export default function App() {
   const handlePlayRemediation = (adaptedSeg) => {
     setRemediationSegment(adaptedSeg);
     setIsRemediationMode(true);
-    setEvaluationResult(null); // Reset feedback so student can re-attempt after watching
+    setEvaluationResult(null);
   };
 
-  // 4. Advance to Next Segment or Launch Quiz
+  // 4. Advance Next Segment or Launch Quiz
   const handleAdvanceNext = async () => {
     setEvaluationResult(null);
     setIsRemediationMode(false);
@@ -109,7 +214,6 @@ export default function App() {
       setCurrentSegmentIndex(nextIndex);
       const nextSeg = activeLesson.segments[nextIndex];
 
-      // Ensure video is rendered for the next segment
       if (!nextSeg.video_url) {
         setIsLoadingVideo(true);
         try {
@@ -125,15 +229,15 @@ export default function App() {
         }
       }
     } else {
-      // Reached end of lesson segments -> Fetch and Launch Summative Quiz
+      // End of segments -> launch quiz
       setIsLoadingLesson(true);
       try {
         const quizData = await getQuiz(activeLesson.lesson_id);
         setQuiz(quizData);
-        setViewState('quiz');
+        setClassroomViewState('quiz');
       } catch (err) {
         console.error("Error fetching quiz:", err);
-        alert("Failed to generate quiz.");
+        alert("Failed to generate quiz assessment.");
       } finally {
         setIsLoadingLesson(false);
       }
@@ -151,165 +255,144 @@ export default function App() {
         answers
       });
       setReport(reportData);
-      setViewState('report');
+      setClassroomViewState('report');
+      // Refresh profile to reflect completed quiz
+      getStudentProfile().then((data) => setStudentProfile(data));
     } catch (err) {
       console.error("Error submitting quiz:", err);
-      alert("Failed to generate report.");
+      alert("Failed to compile feedback report.");
     } finally {
       setIsSubmittingQuiz(false);
     }
   };
 
-  // 6. Reset or Start Recommended Topic
-  const handleResetLesson = () => {
-    setViewState('onboarding');
-    setActiveLesson(null);
-    setCurrentSegmentIndex(0);
-    setIsRemediationMode(false);
-    setRemediationSegment(null);
-    setEvaluationResult(null);
-    setQuiz(null);
-    setReport(null);
-  };
-
-  const handleStartNextTopic = (topicName) => {
-    handleResetLesson();
-    handleCreateLesson({
-      topic: topicName,
-      level: activeLesson?.target_level || 'beginner',
-      timeMinutes: 5,
-      language: activeLesson?.target_language || 'en'
-    });
-  };
-
-  // Active segment display object
+  // Active segment
   const activeSegment = isRemediationMode
     ? remediationSegment
     : activeLesson?.segments?.[currentSegmentIndex];
 
   return (
-    <div className="app-layout">
-      {/* Universal Header */}
-      <Header
-        systemHealth={systemHealth}
-        language={activeLesson?.target_language || 'en'}
-        onResetLesson={handleResetLesson}
-        hasActiveLesson={viewState !== 'onboarding'}
+    <div className="app-shell-layout">
+      {/* 1. Main Navigation Sidebar */}
+      <Sidebar
+        activeNav={activeNav}
+        onSelectNav={setActiveNav}
+        studentProfile={studentProfile}
       />
 
-      {/* Main Studio Viewport */}
-      <main className="main-content">
-        {/* VIEW 1: Onboarding & Input Form */}
-        {viewState === 'onboarding' && (
-          <UploadOrTopicForm
-            onSubmit={handleCreateLesson}
-            isLoading={isLoadingLesson}
-          />
-        )}
+      {/* 2. Primary Content Stage */}
+      <div className="app-stage-wrapper">
+        <TopHeader
+          studentProfile={studentProfile}
+          language={studentProfile?.learning_profile?.preferred_language || 'hinglish'}
+          onSwitchLanguage={handleSwitchLanguage}
+          onGlobalSearch={handleGlobalSearch}
+          onOpenProfile={() => setActiveNav('profile')}
+        />
 
-        {/* VIEW 2: Interactive Teaching Studio */}
-        {viewState === 'lesson' && activeSegment && (
-          <div className="lesson-studio-container">
-            {/* Knowledge Route Grounding Bar */}
-            <div className="grounding-bar glass-panel" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 16px', marginBottom: '16px', borderRadius: '10px', fontSize: '0.85rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                <span style={{ fontWeight: '600', color: '#94a3b8' }}>Grounded Knowledge Source:</span>
-                <span className="route-badge" style={{ padding: '3px 10px', borderRadius: '6px', background: activeLesson?.source_route === 'external_web' ? 'rgba(6, 182, 212, 0.15)' : activeLesson?.source_route === 'pdf_rag' ? 'rgba(99, 102, 241, 0.15)' : 'rgba(16, 185, 129, 0.15)', color: activeLesson?.source_route === 'external_web' ? '#22d3ee' : activeLesson?.source_route === 'pdf_rag' ? '#a5b4fc' : '#34d399', border: '1px solid currentColor' }}>
-                  {activeLesson?.source_route === 'external_web' ? '🌐 Live Web Retrieval' : activeLesson?.source_route === 'pdf_rag' ? '📄 PDF Document RAG' : '🧠 AI Knowledge Base'}
-                </span>
-                {activeLesson?.subject && (
-                  <span style={{ color: '#64748b' }}>• Subject: <strong style={{ color: '#cbd5e1' }}>{activeLesson.subject}</strong></span>
-                )}
-              </div>
+        <main className="app-main-viewport">
+          {/* VIEW: DASHBOARD */}
+          {activeNav === 'dashboard' && (
+            <StudentDashboard
+              studentProfile={studentProfile}
+              onStartTopic={handleStartTopic}
+              onContinueLesson={handleContinueLesson}
+            />
+          )}
 
-              {activeLesson?.sources && activeLesson.sources.length > 0 && (
-                <div className="sources-inline-list" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.75rem', color: '#64748b' }}>Verified Sources:</span>
-                  {activeLesson.sources.map((s, idx) => (
-                    s.url ? (
-                      <a
-                        key={idx}
-                        href={s.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="source-link-chip"
-                        style={{ padding: '2px 8px', borderRadius: '4px', background: '#1e293b', color: '#38bdf8', textDecoration: 'none', fontSize: '0.75rem', border: '1px solid #334155' }}
-                        title={`${s.title} (${s.source})`}
-                      >
-                        🔗 {s.source}
-                      </a>
-                    ) : (
-                      <span
-                        key={idx}
-                        className="source-link-chip"
-                        style={{ padding: '2px 8px', borderRadius: '4px', background: '#1e293b', color: '#94a3b8', fontSize: '0.75rem', border: '1px solid #334155' }}
-                      >
-                        📄 {s.source}
-                      </span>
-                    )
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* VIEW: LEARN */}
+          {activeNav === 'learn' && (
+            <LearnInputView
+              onSubmitLesson={handleCreateLesson}
+              isLoading={isLoadingLesson}
+              studentProfile={studentProfile}
+              initialQuery={pendingSearchQuery}
+            />
+          )}
 
-            <div className="lesson-studio-grid">
-              {/* Left/Main Column: Video Player */}
-              <div className="studio-video-col">
-                <VideoPlayer
-                  videoUrl={activeSegment.video_url}
-                  segmentTitle={activeSegment.title}
-                  segmentIndex={currentSegmentIndex + 1}
-                  totalSegments={activeLesson?.segments?.length || 1}
-                  isRemediation={isRemediationMode}
-                  isLoadingVideo={isLoadingVideo}
-                />
-              </div>
+          {/* VIEW: CLASSROOM */}
+          {activeNav === 'classroom' && (
+            <ClassroomView
+              activeLesson={activeLesson}
+              activeSegment={activeSegment}
+              currentSegmentIndex={currentSegmentIndex}
+              isRemediationMode={isRemediationMode}
+              isLoadingVideo={isLoadingVideo}
+              isEvaluating={isEvaluating}
+              evaluationResult={evaluationResult}
+              quiz={quiz}
+              report={report}
+              viewState={classroomViewState}
+              onSubmitAnswer={handleSubmitAnswer}
+              onAdvanceNext={handleAdvanceNext}
+              onPlayRemediation={handlePlayRemediation}
+              onSubmitQuiz={handleSubmitQuiz}
+              isSubmittingQuiz={isSubmittingQuiz}
+              onRestartLesson={() => setActiveNav('learn')}
+              studentProfile={studentProfile}
+            />
+          )}
 
-              {/* Right/Bottom Column: Formative Question Dock */}
-              <div className="studio-interact-col">
-                <QuestionPrompt
-                  question={activeSegment.question}
-                  onSubmitAnswer={handleSubmitAnswer}
-                  isEvaluating={isEvaluating}
-                  evaluationResult={evaluationResult}
-                  onAdvanceNext={handleAdvanceNext}
-                  onPlayRemediation={handlePlayRemediation}
-                  isLastSegment={currentSegmentIndex === (activeLesson?.segments?.length || 1) - 1}
-                  lessonId={activeLesson?.lesson_id}
-                  segmentId={activeSegment?.id}
-                  language={activeLesson?.target_language}
-                />
-              </div>
-            </div>
-          </div>
-        )}
+          {/* VIEW: PROGRESS */}
+          {activeNav === 'progress' && (
+            <ProgressView
+              studentProfile={studentProfile}
+              onStartTopic={handleStartTopic}
+            />
+          )}
 
-        {/* VIEW 3: Summative Quiz View */}
-        {viewState === 'quiz' && quiz && (
-          <QuizView
-            quiz={quiz}
-            onSubmitQuiz={handleSubmitQuiz}
-            isSubmitting={isSubmittingQuiz}
-          />
-        )}
+          {/* VIEW: LEARNING PATH */}
+          {activeNav === 'path' && (
+            <LearningPathView
+              studentProfile={studentProfile}
+              onStartTopic={handleStartTopic}
+            />
+          )}
 
-        {/* VIEW 4: Feedback & Mastery Report */}
-        {viewState === 'report' && report && (
-          <FeedbackReport
-            report={report}
-            sources={activeLesson?.sources}
-            sourceRoute={activeLesson?.source_route}
-            onStartNextTopic={handleStartNextTopic}
-            onResetLesson={handleResetLesson}
-          />
-        )}
-      </main>
+          {/* VIEW: STUDY PLAN */}
+          {activeNav === 'study_plan' && (
+            <StudyPlanView
+              studentProfile={studentProfile}
+              onUpdateStudyPlan={handleUpdateStudyPlan}
+              onStartTopic={handleStartTopic}
+            />
+          )}
 
-      {/* Loading Overlay Modal */}
+          {/* VIEW: MY PROFILE */}
+          {activeNav === 'profile' && (
+            <StudentProfileView
+              studentProfile={studentProfile}
+              onUpdateProfile={handleUpdateProfile}
+              onStartTopic={handleStartTopic}
+            />
+          )}
+
+          {/* VIEW: SETTINGS */}
+          {activeNav === 'settings' && (
+            <SettingsView
+              developerMode={developerMode}
+              onToggleDeveloperMode={setDeveloperMode}
+              onOpenDevConsole={() => setIsDevConsoleOpen(true)}
+              systemHealth={systemHealth}
+            />
+          )}
+        </main>
+      </div>
+
+      {/* Developer Inspection Console Modal (Developer Mode Only) */}
+      <DeveloperModeModal
+        isOpen={isDevConsoleOpen && developerMode}
+        onClose={() => setIsDevConsoleOpen(false)}
+        systemHealth={systemHealth}
+        activeLesson={activeLesson}
+        activeSegment={activeSegment}
+      />
+
+      {/* Loading Overlay */}
       {isLoadingLesson && (
         <LoadingOverlay
-          title={viewState === 'onboarding' ? "Synthesizing AI Lesson & Avatar Video" : "Generating Mastery Assessment"}
-          subtitle="Processing RAG vectors, audio synthesis, and ffmpeg visual compositing..."
+          title="Preparing Your Personalized Lesson"
+          subtitle="Grounded in your student profile, learning goals, and course curriculum..."
         />
       )}
     </div>

@@ -12,6 +12,7 @@ from app.api.routes_lesson import router as lesson_router
 from app.api.routes_segment import router as segment_router
 from app.api.routes_interact import router as interact_router
 from app.api.routes_assessment import router as assessment_router
+from app.api.routes_profile import router as profile_router
 
 # Ensure media directory exists
 os.makedirs("media/videos", exist_ok=True)
@@ -40,6 +41,7 @@ app.include_router(lesson_router)
 app.include_router(segment_router)
 app.include_router(interact_router)
 app.include_router(assessment_router)
+app.include_router(profile_router)
 
 
 @app.get("/health")

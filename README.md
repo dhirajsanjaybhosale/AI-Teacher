@@ -72,30 +72,47 @@ The **adaptive teaching loop is the core innovation**: when a student submits an
 
 ## 🌟 Key Highlights & Features
 
-1. **RAG-Grounded Ingestion Pipeline**:
-   - Parses complex PDF chapters with **PyMuPDF**, chunks content into overlapping semantic windows, and generates high-dimensional embeddings locally with **`sentence-transformers` (`all-MiniLM-L6-v2`)**.
-   - Vector indexing and top-$k$ context retrieval powered by **FAISS**.
+1. **Articulated Classroom Educator (Dr. Nova)**:
+   - Not a static talking head or flat avatar: Dr. Nova features full upper-body educator presentation with articulated shoulders, blazer, spectacles, blinking state machine, and natural sinusoidal breathing cycles.
+   - 6 pedagogical postures:
+     - `point_board`: Turns torso and eyes right, using a golden-tipped pointer wand to direct student focus to smartboard equations and diagrams.
+     - `explain`: Conversational arm and finger cadence moving in sync with speech amplitude.
+     - `question`: Inquisitive expression, raised eyebrow, hand resting thoughtfully at chin.
+     - `praise`: Celebratory double thumbs-up with bright beaming smile on concept mastery.
+     - `remediate`: Empathetic reassuring posture, placing hand gently over the heart.
+     - `welcome`: Welcoming posture introducing the lesson objectives.
+   - Synchronized smartboard highlights: formula and key concept cards illuminate with a glowing focus border when the teacher points to them.
 
-2. **Unified Free-Tier LLM Abstraction**:
-   - First-class support for **Google Gemini** (`GEMINI_API_KEY`) and **Groq** (`GROQ_API_KEY`).
-   - Includes an intelligent offline domain engine ensuring an unbreakable, reliable live judging demonstration even with zero API keys configured.
+2. **Digital Classroom Smartboard (`ClassroomBoard`)**:
+   - Modern interactive teaching board rendered alongside or split-screen with the teacher video.
+   - Subject-aware visual presentations:
+     - **Mathematics & Physics**: Large formatted formulas (e.g. $V = I \times R$) with component breakdowns.
+     - **Computer Science & Programming**: Syntax-highlighted code blocks with execution flow.
+     - **Sciences & Processes**: Step-by-step numbered visual workflow capsules.
+     - **Trade-offs & Differences**: Side-by-side comparative analysis cards.
+     - **Biology & Structures**: Labeled structural interaction overviews.
+   - Core principle takeaways and memorable real-world analogy blocks (e.g. water-pipe model for Ohm's Law).
 
-3. **Neural Voice Narration & Audio Envelope Analysis**:
-   - Natural spoken speech generation for both **English** (`en-US-JennyNeural` / `en-US-GuyNeural`) and **Hindi** (`hi-IN-SwaraNeural` / `hi-IN-MadhurNeural`) using **`edge-tts`** with offline **`pyttsx3`** fallback.
-   - Calculates 25fps normalized audio amplitude and RMS energy envelopes for synchronized lip animation and visualizer waveforms.
+3. **Dynamic Knowledge Router (3 Unified Routes)**:
+   - **Route 1: Document RAG**: Multi-format document parser (PDF, DOCX, PPTX, TXT, MD) with PyMuPDF, sentence-transformers (`all-MiniLM-L6-v2`), FAISS vector index, and scanned document OCR advisory.
+   - **Route 2: External Live Web Retrieval**: Automatically triggered on temporal, breakthrough, or recent queries (e.g., "latest developments in AI agents", "who won 2026") using DuckDuckGo, ArXiv, and Wikipedia.
+   - **Route 3: Universal General LLM Knowledge**: Deep foundational curricula across STEM, humanities, and programming.
+   - **Natural Language Intent Parsing**: Auto-extracts level (*Beginner/Inter/Adv*), duration (*5m to 60m*), language (*English/Hindi/Hinglish*), learning goal (*Understand/Exam/Interview/Practice*), and teaching style (*Simple/Visual/Detailed/Socratic/Exam-focused*).
 
-4. **GPU-Aware Avatar & Video Compositing Engine**:
-   - Automatically detects CUDA GPU availability at startup.
-   - **GPU Mode**: Enables neural lip-synced avatar generation (Wav2Lip / SadTalker).
-   - **CPU Mode (Fallback)**: Seamlessly engages a synchronized 2D vector animated avatar with 4 phonetic mouth shapes, natural blinking state machines, and reactive audio visualizers.
-   - **FFmpeg Compositor**: Assembles teacher portrait, cosmic tech slide cards, lesson badges, key takeaway bullets, analogy banners, subtitles, and progress bars into crisp 720p H.264/AAC MP4 files.
+4. **Formative Assessment & Empathetic Misconception Remediation**:
+   - Instruction pauses after key concepts with: `🧠 Let's check your understanding`.
+   - Supports MCQ, short-answer reasoning, conceptual, application, and problem solving.
+   - When an answer is incorrect, the AI diagnostician isolates the root cause (e.g., confusing direct and inverse proportionality), and the teacher warmly guides the student:
+     *“You're very close! The confusion is between voltage and current. Let's look at this using a water-pipe example.”*
+   - On-the-fly customized remediation video generation with a fresh analogy and alternative visual perspective.
 
-5. **Formative Assessment & Misconception Remediation Loop**:
-   - The core differentiator: when a student answers incorrectly, the AI diagnostician isolates the **specific mental model misconception** (not just marking it wrong), generates a custom re-explanation from a novel intuitive angle or concrete analogy, dynamically renders a new remediation video clip on the fly, and re-presents it to the learner.
+5. **Real-Time Teacher Presence & Cognitive Telemetry**:
+   - `TeacherReactionBadge`: Displays real-time teacher presence, speech bubbles, and pedagogical posture (Teaching, Waiting, Evaluating, Praising, Remediating).
+   - `TeacherBrainPanel`: Live telemetry displaying learner level, understanding state, diagnosed mental gaps, and current teaching strategy.
 
 6. **Summative Assessment & Analytics Feedback Report**:
-   - Concludes with a 3–5 question multiple-choice mastery quiz.
-   - Generates a visual mastery gauge, identifies strengths (concepts mastered), isolates focus areas (weak concepts), provides targeted study tips, and recommends the next learning horizon with a 1-click launch button.
+   - 3–5 question mastery quiz scoring overall comprehension.
+   - Visual circular mastery gauge, concepts mastered vs. focus areas, personalized study guidance, and a 1-click launch button for the next learning horizon.
 
 ---
 
@@ -190,35 +207,61 @@ Open `http://127.0.0.1:5173` in your browser.
 
 ## 🧪 Automated Verification Suite
 
-To verify the complete 7-stage end-to-end pipeline automatically:
+AI Teacher includes two automated testing suites: the 16-point Master Verification Suite and the 7-stage QA regression script.
+
+### 1. 16-Point Master Test Suite
+```bash
+cd backend
+python test_master_suite.py
+```
+This suite verifies:
+1. **Health Endpoint & Diagnostics**: Verifies CPU/GPU execution mode detection.
+2. **Topic Lesson Generation**: Autonomous planning and video synthesis on any user prompt.
+3. **Multi-Format Ingestion**: Ingests `.pdf`, `.docx`, `.pptx`, `.txt`, `.md`, and detects scanned image-only PDFs with OCR guidance.
+4. **RAG Retrieval & Confidence Scoring**: Vector indexing with normalized confidence scores and low-relevance disclaimers.
+5. **Adaptive Time Planning**: Synthesizes 5m, 20m, and 7-day structured mastery curriculums.
+6. **Video & Avatar Synthesis**: Synchronized audio-driven lip animation, slide rendering, and FFmpeg assembly.
+7. **Formative Evaluation**: Accurate conceptual grading and cognitive telemetry reporting.
+8. **Misconception Diagnosis**: Isolates root-cause mental flaws, severity, and pedagogical strategies.
+9. **Dynamic Remediation**: Custom re-explanation video generation and interactive in-lesson Q&A.
+10. **Summative Quiz Generation**: Multi-question assessment tailored to the lesson domain.
+11. **Automated Quiz Scoring**: Objective percentage grading and answer checking.
+12. **Mastery Analytics & Learning Path**: Longitudinal multi-step pathway recommendations.
+13. **Pure Hindi Script & Neural Voice**: Devanagari text generation and `hi-IN-SwaraNeural` voice synthesis.
+14. **English Script & Neural Voice**: Fluent narration and `en-US-JennyNeural` voice synthesis.
+15. **Hinglish Mode & Live Language Switch**: Conversational Hinglish (`en-IN`) and mid-lesson translation without progress loss.
+16. **LLM Resiliency & Offline Fallback**: Zero-dependency intelligent domain engine fallback ensuring unbreakable execution.
+
+### 2. End-to-End Demo QA Flow
 ```bash
 cd backend
 python test_demo_flow.py
 ```
-This automatically verifies:
-1. System Health & Hardware Mode Detection
-2. PDF Ingestion, Chunking, Embedding, FAISS Indexing & RAG Retrieval
-3. Adaptive Lesson Planning & Curriculum Generation
-4. Neural TTS Synthesis & RMS Audio Amplitude Analysis
-5. Talking Avatar Frame Generation & FFmpeg Video Assembly
-6. Formative Assessment: Misconception Diagnosis & Adaptive Reteaching Video Loop
-7. Summative Assessment: Quiz Generation, Scoring, and Feedback Reporting
 
 ---
 
 ## 🎬 Hackathon Live Demo Walkthrough
 
-### Scenario: The Electricity & Ohm's Law Masterclass
+### Scenario: Universal Topic or Multi-Format Document Masterclass
 1. Open `http://127.0.0.1:5173`.
-2. In the setup screen, click **"⚡ Sample 1: Electricity & Ohm's Law (PDF)"** (or upload any PDF / type any topic).
-3. Set **Target Level** to *Beginner*, **Time Budget** to *5 Min (or custom)*, and **Language** to *English (or Hindi)*.
+2. **Choose Your Input**:
+   - **Document Mode**: Upload any `.pdf`, `.docx`, `.pptx`, `.txt`, or choose a benchmark chapter.
+   - **Topic Prompt Mode**: Type any topic (e.g., *"What is photosynthesis?"*, *"Explain recursion"*, *"What is blockchain?"*).
+3. **Personalize Your Experience**:
+   - **Target Level**: Beginner, Intermediate, or Advanced.
+   - **Time Budget**: 5m, 10m, 20m, 30m, 60m, or **7-Day Plan**.
+   - **Teaching Style**: Simple, Detailed, Visual, Practical, Socratic, or Exam-focused.
+   - **Prior Knowledge**: (Optional) Note what you already know.
+   - **Language**: English, Hindi (हिंदी), or Hinglish.
 4. Click **"Launch Interactive AI Teacher Lesson"**.
-5. **Watch Segment 1**: Dr. Nova explains Voltage, Current, and Resistance with synchronized slide deck, key takeaway cards, audio visualizers, and subtitle ticker.
-6. **Formative Check**:
-   - Enter an incorrect answer (e.g., *"Current increases when resistance increases because more resistance creates more friction"*).
-   - **Observe Adaptation**: The AI diagnoses the exact misconception (*"Student believes current increases with resistance, confusing inverse with direct proportionality"*), generates a fresh water-pipe analogy, and synthesizes a **custom remediation video clip on the spot**!
-   - Click **"Watch Custom Re-Explanation Video"** to view the remedial video.
-7. Submit the correct answer to advance.
-8. Complete the **Summative Mastery Quiz**.
-9. Review the **Pedagogical Mastery Report** with your score gauge, mastered concepts, areas for review, and 1-click button to launch the recommended next topic (*"Advanced Conceptual Principles"*).
+5. **Watch the Lesson**:
+   - Dr. Nova presents the concepts with synchronized audio visualizers, keyword badges, and takeaway slides.
+   - Expand the **🧠 Teacher Brain** panel to inspect live cognitive telemetry: Learner Level, Understanding State, Misconception Diagnosis, Teaching Strategy, and Next Pedagogical Action.
+   - Use the **Language Switcher** in the header to switch languages mid-lesson on the fly!
+6. **Formative Check & Adaptation**:
+   - Submit an intentionally flawed answer to trigger the adaptive loop.
+   - The AI Teacher identifies your mental model gap, explains the root cause, and generates a **custom remediation video with a fresh analogy**.
+   - Click **"Watch Custom Re-Explanation Video"** to review the concept.
+7. Complete the **Summative Mastery Quiz**.
+8. View the **Mastery Analytics Report** with your score gauge, 7-day study curriculum, longitudinal learning progression, and 1-click launch button for the recommended follow-up topic!
 

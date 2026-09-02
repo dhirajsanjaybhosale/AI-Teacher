@@ -33,6 +33,15 @@ class SourceMetadata(BaseModel):
     snippet: Optional[str] = Field(default="", description="Relevant excerpt extracted from the source")
 
 
+class DailyRoadmapItem(BaseModel):
+    day: int = Field(..., description="Day number: 1 to 7")
+    title: str = Field(..., description="Focus module title for this day")
+    duration_minutes: int = Field(default=30, description="Recommended study time")
+    revision_schedule: str = Field(..., description="Spaced repetition recall schedule")
+    practice_goals: str = Field(..., description="Key exercises and target practice goals")
+    assessment_type: Optional[str] = Field(default="Formative Mastery Check", description="Diagnostic check format")
+
+
 class LessonPlan(BaseModel):
     lesson_id: str = Field(..., description="Unique ID for this generated lesson session")
     title: str = Field(..., description="Main title of the lesson")
@@ -51,7 +60,7 @@ class LessonPlan(BaseModel):
     retrieval_confidence: Optional[float] = Field(default=1.0, description="RAG Retrieval confidence score (0.0 - 1.0)")
     retrieval_warning: Optional[str] = Field(default="", description="Notice if retrieval confidence is low or scanned document detected")
     is_scanned_doc: Optional[bool] = Field(default=False, description="Whether uploaded document was detected as image-only/scanned")
-    study_roadmap_7_days: Optional[List[Dict[str, Any]]] = Field(default=None, description="Structured 7-day curriculum when 7-day budget selected")
+    study_roadmap_7_days: Optional[List[DailyRoadmapItem]] = Field(default=None, description="Structured 7-day curriculum when 7-day budget selected")
     learning_path: Optional[List[Dict[str, Any]]] = Field(default=None, description="Hierarchical sequential mastery path nodes")
 
 
@@ -171,5 +180,94 @@ class LearnerProgress(BaseModel):
     weak_concepts: List[str] = Field(default_factory=list)
     recommended_topics_history: List[str] = Field(default_factory=list)
     recent_quiz_scores: List[Dict[str, Any]] = Field(default_factory=list)
+
+
+class StudentPersonalInfo(BaseModel):
+    full_name: str = "Dhiraj Bhosale"
+    education_level: str = "Undergraduate"
+    institution: str = "MMCOE"
+    course: str = "B.Tech"
+    branch: str = "Information Technology"
+    year: str = "3rd Year"
+    semester: int = 6
+    subjects: List[str] = Field(default_factory=lambda: [
+        "Data Structures", "DBMS", "Operating Systems", "Computer Networks", "Programming"
+    ])
+    status: str = "Active learner"
+    avatar_initials: str = "DB"
+
+
+class StudentLearningProfile(BaseModel):
+    preferred_language: str = "hinglish"
+    learning_goals: List[str] = Field(default_factory=lambda: ["Exam Preparation", "Concept Understanding"])
+    learning_styles: List[str] = Field(default_factory=lambda: ["Visual", "Practical", "Step-by-step", "Analogy based"])
+    current_level: str = "intermediate"
+    daily_study_time_minutes: int = 60
+    preferred_difficulty: str = "adaptive"
+
+
+class TopicMastery(BaseModel):
+    name: str
+    mastery_percentage: int
+    is_completed: bool = False
+    status: str = "mastered"  # "mastered", "in_progress", "needs_improvement"
+    last_attempted: Optional[str] = None
+
+
+class SubjectMastery(BaseModel):
+    subject: str
+    overall_percentage: int
+    topics: List[TopicMastery] = Field(default_factory=list)
+
+
+class MisconceptionRecord(BaseModel):
+    concept: str
+    misconception: str
+    attempts: int = 1
+    mastery_percentage: int = 60
+    last_attempted: str = "Yesterday"
+    ai_recommendation: str = ""
+
+
+class LearningHistoryEntry(BaseModel):
+    topic: str
+    date: str
+    duration_minutes: int
+    quiz_score_percentage: int
+    mastery_delta: str
+    language: str
+    status: str = "Completed"
+
+
+class StudyPlanItem(BaseModel):
+    day_name: str
+    topic: str
+    duration_minutes: int
+    is_completed: bool = False
+
+
+class CompleteStudentProfile(BaseModel):
+    personal_info: StudentPersonalInfo = Field(default_factory=StudentPersonalInfo)
+    learning_profile: StudentLearningProfile = Field(default_factory=StudentLearningProfile)
+    overall_mastery: int = 78
+    quiz_average: int = 86
+    lessons_completed: int = 24
+    hours_learned: float = 38.0
+    learning_streak_days: int = 7
+    today_goal_completed: int = 3
+    today_goal_total: int = 4
+    today_study_time_minutes: int = 42
+    continue_learning_topic: str = "Binary Search"
+    continue_learning_progress: int = 68
+    continue_learning_time_remaining: int = 12
+    ai_recommendation: str = "Revise Graph Representation before starting DFS."
+    ai_recommendation_reason: str = "You had difficulty with graph representation in your last lesson."
+    ai_recommendation_topic: str = "Graph Representation"
+    subjects_mastery: List[SubjectMastery] = Field(default_factory=list)
+    misconceptions: List[MisconceptionRecord] = Field(default_factory=list)
+    learning_history: List[LearningHistoryEntry] = Field(default_factory=list)
+    study_plan: List[StudyPlanItem] = Field(default_factory=list)
+    learning_path: List[Dict[str, Any]] = Field(default_factory=list)
+
 
 

@@ -20,6 +20,8 @@ class KnowledgeRoutingResult(BaseModel):
     detected_language: str = Field(default="en", description="en, hi, or hinglish")
     detected_level: str = Field(default="beginner", description="beginner, intermediate, or advanced")
     detected_minutes: int = Field(default=10, description="Inferred or requested duration in minutes")
+    detected_goal: str = Field(default="understand", description="understand, exam, interview, practice, revision")
+    detected_style: str = Field(default="Simple", description="Simple, Detailed, Visual, Practical, Socratic, Exam-focused")
     search_provider: Optional[str] = None
     retrieval_confidence: float = Field(default=1.0, description="Confidence score of RAG retrieval (0.0 - 1.0)")
     retrieval_warning: Optional[str] = Field(default="", description="Warning message if retrieval confidence is low or scanned document detected")
@@ -46,9 +48,17 @@ class KnowledgeRouter:
         self.chunker = TextChunker()
         self.searcher = search_retriever
 
-    def parse_natural_language_intent(self, query: str, default_level: str = "beginner", default_lang: str = "en", default_mins: int = 10) -> Tuple[str, str, str, int]:
+    def parse_natural_language_intent(
+        self,
+        query: str,
+        default_level: str = "beginner",
+        default_lang: str = "en",
+        default_mins: int = 10,
+        default_goal: str = "understand",
+        default_style: str = "Simple"
+    ) -> Tuple[str, str, str, int, str, str]:
         """
-        Extracts language, level, time duration, and clean topic from natural language input.
+        Extracts language, level, time duration, goal, teaching style, and clean topic from natural language input.
         """
         q_clean = query.strip()
         q_lower = q_clean.lower()
@@ -59,10 +69,12 @@ class KnowledgeRouter:
             detected_lang = "hinglish"
         elif any(h in q_lower for h in ["in hindi", "hindi me", "हिंदी", "hindi mein", "hindi script", "explain in hindi"]):
             detected_lang = "hi"
+        elif any(en in q_lower for en in ["in english", "english me", "english mein"]):
+            detected_lang = "en"
 
         # 2. Level Detection
         detected_level = default_level
-        if any(b in q_lower for b in ["beginner", "basics", "from scratch", "for beginners", "fundamentals", "introductory", "for kids", "simple"]):
+        if any(b in q_lower for b in ["beginner", "basics", "from scratch", "for beginners", "fundamentals", "introductory", "for kids", "simple", "bilkul beginner"]):
             detected_level = "beginner"
         elif any(adv in q_lower for adv in ["advanced", "deep dive", "expert", "rigorous", "internals", "architecture"]):
             detected_level = "advanced"
@@ -71,7 +83,7 @@ class KnowledgeRouter:
 
         # 3. Time Duration Detection
         detected_mins = default_mins
-        time_match = re.search(r'for (\d+)\s*(?:minutes|mins|m)\b', q_lower)
+        time_match = re.search(r'(?:for|in)\s+(\d+)\s*(?:minutes|mins|m)\b', q_lower)
         if time_match:
             try:
                 mins = int(time_match.group(1))
@@ -93,11 +105,43 @@ class KnowledgeRouter:
             # For direct single concept questions, default to 5-10m
             detected_mins = min(default_mins, 10)
 
-        # 4. Clean Topic Extraction (strip prefixes like "Teach me", "Explain", "What is", "in Hindi")
+        # 4. Learning Goal Detection
+        detected_goal = default_goal
+        if any(iv in q_lower for iv in ["interview", "preparing for an interview", "interview prep", "job interview"]):
+            detected_goal = "interview"
+        elif any(ex in q_lower for ex in ["exam", "preparing for exam", "board exam", "jee", "neet", "test prep"]):
+            detected_goal = "exam"
+        elif any(rev in q_lower for rev in ["revision", "revise", "quick recap", "summary"]):
+            detected_goal = "revision"
+        elif any(pr in q_lower for pr in ["practical", "hands-on", "build", "project"]):
+            detected_goal = "practice"
+
+        # 5. Teaching Style Detection
+        detected_style = default_style
+        if any(s in q_lower for s in ["simple examples", "simple", "easy", "saral", "intuition", "intuitive"]):
+            detected_style = "Simple"
+        elif any(v in q_lower for v in ["visual", "diagrams", "graphs", "visuals"]):
+            detected_style = "Visual"
+        elif any(d in q_lower for d in ["detailed", "thorough", "deep"]):
+            detected_style = "Detailed"
+        elif any(soc in q_lower for soc in ["socratic", "question me", "interactive"]):
+            detected_style = "Socratic"
+        elif any(ef in q_lower for ef in ["exam-focused", "exam focused", "high yield"]):
+            detected_style = "Exam-focused"
+
+        # 6. Clean Topic Extraction (strip prefixes like "Teach me", "Explain", "What is", "in Hindi")
         clean_topic = q_clean
         # Remove trailing qualifiers
-        clean_topic = re.sub(r'\s*(in hindi|hindi mein|हिंदी में|from beginner level|for beginners|for \d+\s*(?:minutes|mins|m))\s*$', '', clean_topic, flags=re.IGNORECASE).strip()
+        clean_topic = re.sub(
+            r'\s*(in hindi|in english|in hinglish|hindi mein|हिंदी में|from beginner level|for beginners|for \d+\s*(?:minutes|mins|m)|in \d+\s*(?:minutes|mins|m)|with simple examples|with examples|bilkul beginner level se)\s*$',
+            '', clean_topic, flags=re.IGNORECASE
+        ).strip()
         
+        # Strip interview/exam prefixes
+        clean_topic = re.sub(r"^(?:i'm|i am)\s+preparing for an? (?:interview|exam)\.?(?:\s*teach me\s*)?", '', clean_topic, flags=re.IGNORECASE).strip()
+        clean_topic = re.sub(r"^mujhe\s+", '', clean_topic, flags=re.IGNORECASE).strip()
+        clean_topic = re.sub(r"\s+mein samjhao\.?$", '', clean_topic, flags=re.IGNORECASE).strip()
+
         # If user asked "What is X?" or "Explain X", clean title
         prefix_patterns = [
             r'^what is (?:the )?',
@@ -117,7 +161,7 @@ class KnowledgeRouter:
                 topic_candidate = topic_candidate.title()
             clean_topic = topic_candidate.rstrip("?.!")
 
-        return clean_topic, detected_lang, detected_level, detected_mins
+        return clean_topic, detected_lang, detected_level, detected_mins, detected_goal, detected_style
 
     def is_temporal_query(self, query: str) -> bool:
         """
@@ -145,7 +189,7 @@ class KnowledgeRouter:
         doc_name = document_filename or pdf_filename
 
         raw_query = topic or doc_name or "Core Educational Concepts"
-        clean_topic, det_lang, det_level, det_mins = self.parse_natural_language_intent(
+        clean_topic, det_lang, det_level, det_mins, det_goal, det_style = self.parse_natural_language_intent(
             raw_query, default_level=level, default_lang=language, default_mins=time_minutes
         )
 
@@ -199,6 +243,8 @@ class KnowledgeRouter:
                     detected_language=det_lang,
                     detected_level=det_level,
                     detected_minutes=det_mins,
+                    detected_goal=det_goal,
+                    detected_style=det_style,
                     search_provider="FAISS Vector RAG",
                     retrieval_confidence=retrieval_confidence,
                     retrieval_warning=retrieval_warning,
@@ -225,6 +271,8 @@ class KnowledgeRouter:
                     detected_language=det_lang,
                     detected_level=det_level,
                     detected_minutes=det_mins,
+                    detected_goal=det_goal,
+                    detected_style=det_style,
                     search_provider=search_res.get("provider")
                 )
             else:
@@ -243,6 +291,8 @@ class KnowledgeRouter:
             detected_language=det_lang,
             detected_level=det_level,
             detected_minutes=det_mins,
+            detected_goal=det_goal,
+            detected_style=det_style,
             search_provider="LLM General Knowledge"
         )
 

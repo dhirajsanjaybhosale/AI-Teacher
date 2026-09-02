@@ -135,7 +135,8 @@ class OfflineProvider(LLMProvider):
         return "This instructional module explores foundational principles step-by-step with intuitive analogies and practical checks."
 
     def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
-        p_lower = prompt.lower()
+        full_prompt = (prompt + "\n" + (system_prompt or ""))
+        p_lower = full_prompt.lower()
         is_hinglish = (
             "hinglish" in p_lower or '"language": "hinglish"' in p_lower or
             'target_language: hinglish' in p_lower or '"language": "hinglish"' in (system_prompt or "").lower() or
@@ -144,7 +145,7 @@ class OfflineProvider(LLMProvider):
         is_hindi = (
             not is_hinglish and (
                 "hindi" in p_lower or '"language": "hi"' in p_lower or
-                'target_language: hi' in p_lower or 'हिंदी' in prompt or
+                'target_language: hi' in p_lower or 'हिंदी' in full_prompt or
                 'in natural hindi' in p_lower or '"language": "hi"' in (system_prompt or "").lower()
             )
         )
@@ -153,36 +154,36 @@ class OfflineProvider(LLMProvider):
         # 1. FOLLOW-UP INTERACTION / ASK TEACHER REQUEST
         # -------------------------------------------------------------
         if "follow-up request" in p_lower or "ask teacher" in p_lower or "user query:" in p_lower or "student inquiry:" in p_lower:
-            return self._handle_followup(prompt, is_hindi, is_hinglish)
+            return self._handle_followup(full_prompt, is_hindi, is_hinglish)
 
         # -------------------------------------------------------------
         # 2. SUMMATIVE QUIZ GENERATION REQUEST
         # -------------------------------------------------------------
         if "quiz request" in p_lower or ("quiz" in p_lower and "mastery" in p_lower and "questions" in p_lower):
-            return self._handle_quiz(prompt, is_hindi, is_hinglish)
+            return self._handle_quiz(full_prompt, is_hindi, is_hinglish)
 
         # -------------------------------------------------------------
         # 3. FORMATIVE ANSWER EVALUATION REQUEST
         # -------------------------------------------------------------
         if "evaluate the student" in p_lower or "student's submitted answer" in p_lower:
-            return self._handle_evaluation(prompt, is_hindi, is_hinglish)
+            return self._handle_evaluation(full_prompt, is_hindi, is_hinglish)
 
         # -------------------------------------------------------------
         # 4. ADAPTIVE REMEDIATION RE-EXPLANATION REQUEST
         # -------------------------------------------------------------
         if "remediation" in p_lower or "create an adaptive remediation" in p_lower or "diagnosed misconception" in p_lower:
-            return self._handle_remediation(prompt, is_hindi, is_hinglish)
+            return self._handle_remediation(full_prompt, is_hindi, is_hinglish)
 
         # -------------------------------------------------------------
         # 5. FINAL REPORT GENERATION REQUEST
         # -------------------------------------------------------------
         if "report request" in p_lower or "final feedback report" in p_lower:
-            return self._handle_report(prompt, is_hindi, is_hinglish)
+            return self._handle_report(full_prompt, is_hindi, is_hinglish)
 
         # -------------------------------------------------------------
         # 6. LESSON PLANNING / CURRICULUM SYNTHESIS REQUEST
         # -------------------------------------------------------------
-        return self._handle_lesson_plan(prompt, is_hindi, is_hinglish)
+        return self._handle_lesson_plan(full_prompt, is_hindi, is_hinglish)
 
     def _extract_clean_topic(self, prompt: str) -> Tuple[str, str]:
         """
@@ -293,7 +294,7 @@ class OfflineProvider(LLMProvider):
         p_lower = prompt.lower()
         num_segments = 2
         for n in [6, 5, 4, 3, 2]:
-            if f"{n}-segment" in p_lower or f"exactly {n}" in p_lower:
+            if f"{n}-segment" in p_lower or f"exactly {n}" in p_lower or f"{n} instructional segment" in p_lower or f"{n} segment" in p_lower:
                 num_segments = n
                 break
 
@@ -820,7 +821,7 @@ class OfflineProvider(LLMProvider):
         # DOMAIN 10: UNIVERSAL DYNAMIC FALLBACK FOR ANY ARBITRARY TOPIC
         # -------------------------------------------------------------
         snippet = context[:180].replace('\n', ' ') if context else f"core foundational mechanisms and real-world dynamics of {topic}"
-        return [
+        base_segs = [
             {
                 "id": "seg_1",
                 "title": f"{topic} के मूल सिद्धांत और कार्यप्रणाली" if is_hindi else f"Core Foundations & Principles of {topic}",
@@ -876,6 +877,66 @@ class OfflineProvider(LLMProvider):
                 }
             }
         ]
+
+        if count >= 3:
+            base_segs.append({
+                "id": "seg_3",
+                "title": f"{topic} के उन्नत विषय और समस्या-निवारण" if is_hindi else f"Advanced Edge Cases, Diagnostics & Optimization of {topic}",
+                "explanation": f"इस खंड में हम {topic} के जटिल परिदृश्यों, सामान्य त्रुटियों और प्रदर्शन सुधार की रणनीतियों का गहराई से अध्ययन करेंगे।" if is_hindi else f"In this segment, we deep-dive into complex edge cases, debugging scenarios, and performance optimization strategies for {topic}.",
+                "example": "एक विशेषज्ञ इंजीनियर की तरह समस्याओं के मूल कारण का पता लगाना और निवारण करना।" if is_hindi else "Like a senior engineer conducting root-cause analysis to eliminate systemic bottlenecks.",
+                "key_points": [
+                    "गहन नैदानिक रणनीतियाँ" if is_hindi else "Deep diagnostics and debugging patterns",
+                    "प्रदर्शन अनुकूलन और दक्षता" if is_hindi else "Performance profiling and latency reduction",
+                    "सामान्य विफलता मोड और समाधान" if is_hindi else "Common anti-patterns, pitfalls, and failure mitigations"
+                ],
+                "visual_diagram_type": "process",
+                "visual_description": f"Diagnostics and optimization pipeline for {topic}",
+                "visual_code_or_math": f"Optimization: Minimize(Bottlenecks) -> Maximize(Reliability)",
+                "question": {
+                    "id": "q_3",
+                    "question_text": f"{topic} में समस्याओं के निदान के लिए सबसे प्रभावी दृष्टिकोण क्या है?" if is_hindi else f"What is the most effective engineering approach to diagnosing failures in {topic}?",
+                    "options": [
+                        "व्यवस्थित रूप से लॉग और मेट्रिक्स का विश्लेषण करना" if is_hindi else "Systematic trace analysis and boundary verification",
+                        "समस्या की अनदेखी करना" if is_hindi else "Arbitrary code changes without tracing",
+                        "सभी घटकों को पुनः आरंभ करना" if is_hindi else "Bypassing root cause analysis",
+                        "चेतावनी संकेतों को छिपाना" if is_hindi else "Silencing error indicators without fixes"
+                    ],
+                    "correct_answer": "व्यवस्थित रूप से लॉग और मेट्रिक्स का विश्लेषण करना" if is_hindi else "Systematic trace analysis and boundary verification",
+                    "hint": "Think about root-cause diagnostics.",
+                    "explanation": "Systematic root-cause analysis is critical for high-reliability systems."
+                }
+            })
+
+        if count >= 4:
+            base_segs.append({
+                "id": "seg_4",
+                "title": f"{topic} का समग्र समन्वय और आर्किटेक्चर" if is_hindi else f"System Integration, Scalability & Architectural Mastery of {topic}",
+                "explanation": f"अंत में, हम देखेंगे कि {topic} को बड़े पैमाने पर उत्पादन प्रणालियों और आधुनिक आर्किटेक्चर में कैसे एकीकृत किया जाता है।" if is_hindi else f"Finally, we synthesize how {topic} integrates into large-scale production architectures, ensuring long-term resilience and maintainability.",
+                "example": "एक बड़े पुल या विमान प्रणाली की तरह जहां हर घटक समग्र सुरक्षा और दक्षता सुनिश्चित करता है।" if is_hindi else "Like assembling an aerospace system where every validated subsystem guarantees total mission success.",
+                "key_points": [
+                    "एकीकरण और बड़े पैमाने पर परिनियोजन" if is_hindi else "Enterprise architecture and horizontal scalability",
+                    "विश्वसनीयता और दीर्घकालिक स्थिरता" if is_hindi else "Resilience patterns, telemetry, and fault isolation",
+                    "व्यावसायिक प्रभाव और भविष्य का परिदृश्य" if is_hindi else "Production readiness, compliance, and architectural future-proofing"
+                ],
+                "visual_diagram_type": "flowchart",
+                "visual_description": f"End-to-end architectural system topology for {topic}",
+                "visual_code_or_math": f"Architecture: Subsystem A + Subsystem B -> Scalable Platform ({topic})",
+                "question": {
+                    "id": "q_4",
+                    "question_text": f"उत्पादन परिवेश में {topic} को एकीकृत करते समय प्राथमिक विचार क्या होना चाहिए?" if is_hindi else f"What is the primary architectural consideration when scaling {topic} in production?",
+                    "options": [
+                        "स्थिरता, मॉड्यूलरिटी और त्रुटि सहनशीलता सुनिश्चित करना" if is_hindi else "Ensuring fault isolation, telemetry observability, and modularity",
+                        "सुरक्षा नीतियों को हटा देना" if is_hindi else "Disabling telemetry to save compute cycles",
+                        "केंद्रीकृत विफलता बिंदु बनाना" if is_hindi else "Introducing tight single points of failure",
+                        "सभी सत्यापन परीक्षणों को छोड़ना" if is_hindi else "Skipping integration regression testing"
+                    ],
+                    "correct_answer": "स्थिरता, मॉड्यूलरिटी और त्रुटि सहनशीलता सुनिश्चित करना" if is_hindi else "Ensuring fault isolation, telemetry observability, and modularity",
+                    "hint": "Consider enterprise reliability and fault tolerance.",
+                    "explanation": "Modularity and fault isolation guarantee robust scalable operations."
+                }
+            })
+
+        return base_segs[:count]
 
     def _handle_evaluation(self, prompt: str, is_hindi: bool, is_hinglish: bool = False) -> Dict[str, Any]:
         p_lower = prompt.lower()
@@ -1005,7 +1066,7 @@ class OfflineProvider(LLMProvider):
                 "teacher_brain_state": tb_state
             }
 
-    def _handle_remediation(self, prompt: str, is_hindi: bool) -> Dict[str, Any]:
+    def _handle_remediation(self, prompt: str, is_hindi: bool, is_hinglish: bool = False) -> Dict[str, Any]:
         topic, _ = self._extract_clean_topic(prompt)
         t_lower = topic.lower()
 
@@ -1082,7 +1143,7 @@ class OfflineProvider(LLMProvider):
                 }
             }
 
-    def _handle_followup(self, prompt: str, is_hindi: bool) -> Dict[str, Any]:
+    def _handle_followup(self, prompt: str, is_hindi: bool, is_hinglish: bool = False) -> Dict[str, Any]:
         topic, _ = self._extract_clean_topic(prompt)
         p_lower = prompt.lower()
 
@@ -1107,7 +1168,7 @@ class OfflineProvider(LLMProvider):
                 "example": "Think of it as a clear chain of dominoes where each action triggers the next state predictably."
             }
 
-    def _handle_quiz(self, prompt: str, is_hindi: bool) -> Dict[str, Any]:
+    def _handle_quiz(self, prompt: str, is_hindi: bool, is_hinglish: bool = False) -> Dict[str, Any]:
         topic, _ = self._extract_clean_topic(prompt)
         t_lower = topic.lower()
 
@@ -1202,7 +1263,7 @@ class OfflineProvider(LLMProvider):
             ]
         }
 
-    def _handle_report(self, prompt: str, is_hindi: bool) -> Dict[str, Any]:
+    def _handle_report(self, prompt: str, is_hindi: bool, is_hinglish: bool = False) -> Dict[str, Any]:
         topic, _ = self._extract_clean_topic(prompt)
         t_low = topic.lower()
 

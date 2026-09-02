@@ -45,6 +45,15 @@ class TTSEngine:
         os.makedirs(self.output_dir, exist_ok=True)
         self.ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
 
+    def get_voice(self, lang: str = "en", gender: str = "female") -> str:
+        """Returns the configured neural voice for the given language and gender."""
+        lang_key = lang.lower()
+        if "hinglish" in lang_key:
+            return self.VOICES["hinglish"].get(gender, self.VOICES["hinglish"]["female"])
+        elif "hi" in lang_key:
+            return self.VOICES["hi"].get(gender, self.VOICES["hi"]["female"])
+        return self.VOICES["en"].get(gender, self.VOICES["en"]["female"])
+
     async def _generate_edge_tts(self, text: str, voice: str, output_path: str) -> None:
         communicator = edge_tts.Communicate(text, voice)
         await communicator.save(output_path)

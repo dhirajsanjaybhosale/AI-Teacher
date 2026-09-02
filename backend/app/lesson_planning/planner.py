@@ -250,8 +250,17 @@ Ensure high conceptual accuracy, pedagogical clarity, subject-appropriate visual
             sources=sources or [],
             retrieval_confidence=retrieval_confidence,
             retrieval_warning=retrieval_warning,
-            is_scanned_doc=is_scanned,
-            study_roadmap_7_days=response_dict.get("study_roadmap_7_days"),
+            study_roadmap_7_days=response_dict.get("study_roadmap_7_days") or ([
+                {
+                    "day": d,
+                    "title": f"Day {d}: Mastering {preferences.topic or source_name or 'Foundations'}",
+                    "duration_minutes": 30 + d * 5,
+                    "revision_schedule": f"Day {d+1} retention review",
+                    "practice_goals": f"Structured mastery exercises for Day {d}",
+                    "assessment_type": "Formative Mastery Check"
+                }
+                for d in range(1, 8)
+            ] if is_7_days else None),
             learning_path=response_dict.get("learning_path")
         )
 
