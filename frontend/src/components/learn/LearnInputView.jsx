@@ -4,11 +4,10 @@ import {
   Upload,
   BookOpen,
   ArrowRight,
-  FileText,
+  Clock,
+  Globe,
   CheckCircle2,
   X,
-  HelpCircle,
-  Layers,
   Lightbulb
 } from 'lucide-react';
 
@@ -25,14 +24,38 @@ export default function LearnInputView({
   const [fileProcessedStatus, setFileProcessedStatus] = useState(null);
   const fileInputRef = useRef(null);
 
+  // Duration & Language selection
+  const [selectedDuration, setSelectedDuration] = useState(10);
+  const [selectedLanguage, setSelectedLanguage] = useState(
+    studentProfile?.learning_profile?.preferred_language || 'en'
+  );
+
+  const durationOptions = [
+    { label: '5 min', value: 5, desc: 'Quick Core (3 modules)' },
+    { label: '10 min', value: 10, desc: 'Standard Masterclass (5 modules)' },
+    { label: '20 min', value: 20, desc: 'Deep Dive (7 modules)' },
+    { label: '30 min', value: 30, desc: 'Comprehensive (8 modules)' },
+    { label: '60 min', value: 60, desc: 'Complete Bootcamp (10 modules)' }
+  ];
+
+  const languageOptions = [
+    { label: 'English', value: 'en' },
+    { label: 'Hinglish', value: 'hinglish' },
+    { label: 'हिंदी (Hindi)', value: 'hi' },
+    { label: 'मराठी (Marathi)', value: 'mr' }
+  ];
+
   const promptSuggestions = [
     "Explain Binary Search",
     "Teach me Operating Systems",
     "Explain Newton's Laws",
-    "Help me understand DBMS normalization",
-    "Teach me React Hooks",
-    "How does TCP vs UDP work?",
-    "Photosynthesis & Light Reactions"
+    "Teach me React",
+    "Explain Photosynthesis",
+    "Explain Black Holes",
+    "How does TCP work?",
+    "Explain Quantum Computing",
+    "Teach me Java Inheritance",
+    "Explain Stock Market Basics"
   ];
 
   const handleFileSelect = (file) => {
@@ -60,8 +83,9 @@ export default function LearnInputView({
     onSubmitLesson?.({
       topic: query,
       documentFile: selectedFile,
+      time_minutes: selectedDuration,
+      language: selectedLanguage,
       level: studentProfile?.learning_profile?.current_level || 'intermediate',
-      language: studentProfile?.learning_profile?.preferred_language || 'hinglish',
       goal: studentProfile?.learning_profile?.learning_goals?.[0] || 'understand',
       teachingStyle: studentProfile?.learning_profile?.learning_styles?.[0] || 'Visual'
     });
@@ -75,9 +99,9 @@ export default function LearnInputView({
           <Sparkles size={16} className="text-primary" />
           <span>PERSONALIZED AI CLASSROOM</span>
         </div>
-        <h1 className="learn-main-title">What would you like to learn today?</h1>
+        <h1 className="learn-main-title">What do you want to learn?</h1>
         <p className="learn-subtitle">
-          Ask any concept across Computer Science, Engineering, Physics, or Mathematics — or upload your course notes.
+          Ask me anything... from physics to coding, calculus to history — or upload your course notes.
         </p>
       </div>
 
@@ -89,11 +113,73 @@ export default function LearnInputView({
             <input
               type="text"
               className="learn-text-input"
-              placeholder="Ask me anything... (e.g. Explain Binary Search, Teach me DBMS Normalization)"
+              placeholder="Ask me anything... (e.g. Explain Binary Search, Teach me Operating Systems, Explain Photosynthesis)"
               value={topicInput}
               onChange={(e) => setTopicInput(e.target.value)}
               disabled={isLoading}
             />
+          </div>
+
+          {/* Duration & Language Selector Controls */}
+          <div className="learn-controls-row" style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', margin: '14px 0', alignItems: 'center' }}>
+            {/* Duration Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.82rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                <Clock size={15} className="text-primary" /> Target Duration:
+              </span>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {durationOptions.map((d) => (
+                  <button
+                    key={d.value}
+                    type="button"
+                    title={d.desc}
+                    onClick={() => setSelectedDuration(d.value)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.80rem',
+                      fontWeight: selectedDuration === d.value ? '600' : '400',
+                      background: selectedDuration === d.value ? 'rgba(99, 102, 241, 0.25)' : 'rgba(30, 41, 59, 0.6)',
+                      border: selectedDuration === d.value ? '1px solid #6366f1' : '1px solid rgba(255, 255, 255, 0.1)',
+                      color: selectedDuration === d.value ? '#a5b4fc' : '#cbd5e1',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {d.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Language Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.82rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: '500' }}>
+                <Globe size={15} className="text-emerald" /> Language:
+              </span>
+              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                {languageOptions.map((l) => (
+                  <button
+                    key={l.value}
+                    type="button"
+                    onClick={() => setSelectedLanguage(l.value)}
+                    style={{
+                      padding: '5px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.80rem',
+                      fontWeight: selectedLanguage === l.value ? '600' : '400',
+                      background: selectedLanguage === l.value ? 'rgba(16, 185, 129, 0.22)' : 'rgba(30, 41, 59, 0.6)',
+                      border: selectedLanguage === l.value ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.1)',
+                      color: selectedLanguage === l.value ? '#6ee7b7' : '#cbd5e1',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    {l.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
 
           {/* Uploaded Material Pill if Present */}
@@ -135,7 +221,7 @@ export default function LearnInputView({
               disabled={isLoading || (!topicInput.trim() && !selectedFile)}
             >
               {isLoading ? (
-                <span>Preparing Your Lesson...</span>
+                <span>Generating Personalized Curriculum...</span>
               ) : (
                 <>
                   <span>Start Learning</span>

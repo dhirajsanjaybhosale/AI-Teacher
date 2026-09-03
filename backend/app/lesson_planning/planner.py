@@ -34,15 +34,15 @@ class LessonPlanner:
         if is_7_days:
             num_segments = 4
         elif time_mins <= 5:
-            num_segments = 2
-        elif time_mins <= 10:
             num_segments = 3
-        elif time_mins <= 20:
-            num_segments = 4
-        elif time_mins <= 30:
+        elif time_mins <= 10:
             num_segments = 5
+        elif time_mins <= 20:
+            num_segments = 7
+        elif time_mins <= 30:
+            num_segments = 8
         else:
-            num_segments = 6
+            num_segments = 10
 
         lang_code = preferences.language.lower()
         is_hinglish = (lang_code == "hinglish" or "hinglish" in lang_code)
@@ -170,6 +170,10 @@ Ensure high conceptual accuracy, pedagogical clarity, subject-appropriate visual
                 visual_diagram_type=s_data.get("visual_diagram_type", "flowchart"),
                 visual_description=s_data.get("visual_description", ""),
                 visual_code_or_math=s_data.get("visual_code_or_math", ""),
+                whiteboard_data=s_data.get("whiteboard_data"),
+                target_seconds=s_data.get("target_seconds", 0),
+                actual_seconds=s_data.get("actual_seconds", 0.0),
+                thinking_seconds=s_data.get("thinking_seconds", 20 if question_obj else 0),
                 question=question_obj,
                 is_remediation=s_data.get("is_remediation", False)
             )
@@ -191,6 +195,9 @@ Ensure high conceptual accuracy, pedagogical clarity, subject-appropriate visual
                     ],
                     visual_diagram_type="flowchart",
                     visual_description="Foundation structure diagram",
+                    whiteboard_data={"domain": "general", "title": default_title, "key_principles": [f"Core {default_title} rules", "Systematic mechanics"]},
+                    target_seconds=120,
+                    thinking_seconds=20,
                     question=Question(
                         id="q_1",
                         question_text=f"What is the central foundational premise of {default_title}?",
@@ -217,6 +224,9 @@ Ensure high conceptual accuracy, pedagogical clarity, subject-appropriate visual
                     ],
                     visual_diagram_type="process",
                     visual_description="Process workflow diagram",
+                    whiteboard_data={"domain": "general", "title": f"{default_title} Mechanics", "key_principles": ["Boundary conditions", "Operational stability"]},
+                    target_seconds=120,
+                    thinking_seconds=20,
                     question=Question(
                         id="q_2",
                         question_text=f"How do we apply the mechanics of {default_title} to solve real-world problems?",
@@ -233,7 +243,7 @@ Ensure high conceptual accuracy, pedagogical clarity, subject-appropriate visual
                 )
             ]
 
-        return LessonPlan(
+        lesson_plan = LessonPlan(
             lesson_id=lesson_id,
             title=response_dict.get("title", f"Mastering {preferences.topic or source_name}"),
             subject=response_dict.get("subject", "General"),
@@ -242,6 +252,7 @@ Ensure high conceptual accuracy, pedagogical clarity, subject-appropriate visual
             target_level=level,
             target_language=preferences.language,
             estimated_minutes=time_mins,
+            target_duration_seconds=time_mins * 60,
             goal=goal,
             segments=sanitized_segments,
             source_type=response_dict.get("source_type", "topic"),
@@ -263,6 +274,16 @@ Ensure high conceptual accuracy, pedagogical clarity, subject-appropriate visual
             ] if is_7_days else None),
             learning_path=response_dict.get("learning_path")
         )
+
+        # Calibrate actual duration, synthesise audio measurements, and populate manifest
+        from app.lesson_planning.duration_validator import duration_validator
+        lesson_plan, manifest = duration_validator.validate_and_expand_lesson_duration(
+            lesson_plan,
+            time_mins if not is_7_days else 20,
+            preferences.language
+        )
+
+        return lesson_plan
 
 
 # Global singleton

@@ -34,10 +34,22 @@ class TTSEngine:
             "female": "hi-IN-SwaraNeural",
             "male": "hi-IN-MadhurNeural"
         },
+        "mr": {
+            "female": "mr-IN-AarohiNeural",
+            "male": "mr-IN-ManoharNeural"
+        },
         "hinglish": {
             "female": "en-IN-NeerjaNeural",
             "male": "en-IN-PrabhatNeural"
         }
+    }
+
+    # Realistic speaking speed (words per minute)
+    SPEAKING_RATES = {
+        "en": 145,       # 130–160 wpm
+        "hi": 130,       # 110–150 wpm
+        "mr": 130,       # 110–150 wpm
+        "hinglish": 135  # 120–155 wpm
     }
 
     def __init__(self, output_dir: str = "media/audio"):
@@ -45,12 +57,24 @@ class TTSEngine:
         os.makedirs(self.output_dir, exist_ok=True)
         self.ffmpeg_exe = imageio_ffmpeg.get_ffmpeg_exe()
 
+    def get_speaking_rate_wpm(self, lang: str = "en") -> int:
+        lang_key = lang.lower()
+        if "hinglish" in lang_key:
+            return self.SPEAKING_RATES["hinglish"]
+        elif "mr" in lang_key or "marathi" in lang_key:
+            return self.SPEAKING_RATES["mr"]
+        elif "hi" in lang_key or "hindi" in lang_key:
+            return self.SPEAKING_RATES["hi"]
+        return self.SPEAKING_RATES["en"]
+
     def get_voice(self, lang: str = "en", gender: str = "female") -> str:
         """Returns the configured neural voice for the given language and gender."""
         lang_key = lang.lower()
         if "hinglish" in lang_key:
             return self.VOICES["hinglish"].get(gender, self.VOICES["hinglish"]["female"])
-        elif "hi" in lang_key:
+        elif "mr" in lang_key or "marathi" in lang_key:
+            return self.VOICES["mr"].get(gender, self.VOICES["mr"]["female"])
+        elif "hi" in lang_key or "hindi" in lang_key:
             return self.VOICES["hi"].get(gender, self.VOICES["hi"]["female"])
         return self.VOICES["en"].get(gender, self.VOICES["en"]["female"])
 
@@ -60,7 +84,7 @@ class TTSEngine:
 
     def _generate_pyttsx3(self, text: str, output_path: str, lang: str = "en") -> None:
         engine = pyttsx3.init()
-        engine.setProperty("rate", 160)
+        engine.setProperty("rate", 150)
         # Select voice if available
         voices = engine.getProperty("voices")
         if voices:
@@ -86,6 +110,8 @@ class TTSEngine:
         lang_lower = language.lower()
         if "hinglish" in lang_lower:
             lang_key = "hinglish"
+        elif "mr" in lang_lower or "marathi" in lang_lower:
+            lang_key = "mr"
         elif lang_lower in ["hi", "hindi"]:
             lang_key = "hi"
         else:
@@ -101,16 +127,20 @@ class TTSEngine:
         raw_audio_path = os.path.join(self.output_dir, f"{file_id}_raw.mp3")
         wav_audio_path = os.path.join(self.output_dir, f"{file_id}.wav")
 
+        # Dynamic timeout based on word count (minimum 15s, +0.25s per word, max 90s)
+        word_count = len(text.split())
+        calc_timeout = max(15.0, min(90.0, word_count * 0.25))
+
         success = False
         if _EDGE_TTS_AVAILABLE:
             try:
                 import concurrent.futures
                 async def _timed_gen():
-                    await asyncio.wait_for(self._generate_edge_tts(text, voice, raw_audio_path), timeout=6.0)
+                    await asyncio.wait_for(self._generate_edge_tts(text, voice, raw_audio_path), timeout=calc_timeout)
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
                     future = pool.submit(asyncio.run, _timed_gen())
-                    future.result(timeout=7.0)
+                    future.result(timeout=calc_timeout + 2.0)
 
                 success = os.path.exists(raw_audio_path) and os.path.getsize(raw_audio_path) > 0
             except Exception as e:
@@ -139,6 +169,19 @@ class TTSEngine:
                 os.remove(raw_audio_path)
             except OSError:
                 pass
+
+        # If audio generation failed or file empty, synthesize duration-calibrated WAV
+        if not os.path.exists(wav_audio_path) or os.path.getsize(wav_audio_path) == 0:
+            wpm = self.get_speaking_rate_wpm(lang_key)
+            calibrated_duration = max(3.0, (word_count / float(wpm)) * 60.0)
+            cmd = [
+                self.ffmpeg_exe, "-y",
+                "-f", "lavfi",
+                "-i", "anullsrc=r=44100:cl=mono",
+                "-t", f"{calibrated_duration:.3f}",
+                wav_audio_path
+            ]
+            subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
         # Calculate duration and per-frame amplitudes (25 fps)
         duration, amplitudes = self._analyze_audio_amplitude(wav_audio_path, fps=25)

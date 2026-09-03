@@ -18,32 +18,43 @@ class AnswerEvaluator:
         segment: Segment,
         user_answer: str,
         lesson_title: str = "AI Teacher Lesson",
-        language: str = "en"
+        language: str = "en",
+        prior_answers: Optional[list] = None
     ) -> EvaluationResult:
         """
-        Evaluates the student's answer against the segment question and explanation.
+        Evaluates the student's answer against the segment question and explanation,
+        incorporating past answer memory from the active lesson session.
         """
         clean_user_answer = user_answer.strip()
         q = segment.question
-        is_hindi = (language.lower() in ["hi", "hindi"])
-        lang_name = "Hindi (हिंदी)" if is_hindi else "English"
+        lang_lower = language.lower()
+        is_marathi = ("mr" in lang_lower or "marathi" in lang_lower)
+        is_hinglish = ("hinglish" in lang_lower)
+        is_hindi = (not is_hinglish and not is_marathi and ("hi" in lang_lower or "hindi" in lang_lower))
+        lang_name = "Marathi (मराठी)" if is_marathi else ("Hindi (हिंदी)" if is_hindi else ("Hinglish" if is_hinglish else "English"))
 
         # Direct exact match check for quick optimization if options used
         exact_match = False
         if clean_user_answer.lower() == q.correct_answer.strip().lower():
             exact_match = True
 
+        prior_context = ""
+        if prior_answers:
+            prev_summaries = [f"- Question: {pa.get('question_text', '')} | Student said: '{pa.get('user_answer', '')}' (Correct: {pa.get('is_correct', False)})" for pa in prior_answers[-3:]]
+            prior_context = f"\nPRIOR STUDENT ANSWERS IN THIS LESSON:\n" + "\n".join(prev_summaries)
+
         system_prompt = f"""You are a master pedagogical diagnostician and empathetic AI Teacher.
 Evaluate a student's answer to a formative check question.
+{prior_context}
 
-LANGUAGE OF FEEDBACK: {lang_name} ({'Respond entirely in natural, encouraging Hindi script' if is_hindi else 'Respond in clear, supportive English'})
+LANGUAGE OF FEEDBACK: {lang_name}
 
 EVALUATION CRITERIA:
 1. 'is_correct': boolean (true if conceptually sound, false if fundamentally incorrect or exhibiting misunderstanding).
 2. 'score': float (1.0 for completely correct, 0.5-0.7 for partially correct, 0.0-0.3 for incorrect).
-3. 'feedback': Constructive, encouraging explanation of what was accurate or what core point was missed.
+3. 'feedback': If correct, acknowledge enthusiastically: "Exactly! That's the key idea. Let's make it a little more challenging." If incorrect, be empathetic: "Almost. I can see where the confusion happened. Let's look at it another way."
 4. 'misconception_detected': boolean (true if the student demonstrates a specific conceptual flaw or confusion).
-5. 'misconception_explanation': Specific diagnosis of WHY the student made this error (e.g., 'Confused anaerobic glycolysis with aerobic respiration', 'Mixed up the raw reactant with the catalytic enzyme').
+5. 'misconception_explanation': Specific diagnosis of WHY the student made this error.
 6. 'adaptation_needed': boolean (true if is_correct is false, meaning the student needs an adaptive re-explanation).
 
 CRITICAL JSON SPECIFICATION:
@@ -83,12 +94,32 @@ Evaluate the student's answer accurately."""
         adaptation_needed = bool(result_dict.get("adaptation_needed", not is_correct))
         misconception_detected = bool(result_dict.get("misconception_detected", not is_correct))
 
+        memory_note = ""
+        if prior_answers and len(prior_answers) > 0:
+            last_ans = prior_answers[-1]
+            if last_ans.get("is_correct"):
+                memory_note = " Continuing from your strong grasp on the previous concept: "
+
         feedback = result_dict.get("feedback")
-        if not feedback:
+        if not feedback or "Exactly" not in feedback and "Almost" not in feedback:
             if is_correct:
-                feedback = "शानदार! आपका उत्तर बिल्कुल सही है।" if is_hindi else "Excellent! That is conceptually spot-on."
+                if is_marathi:
+                    feedback = f"अगदी बरोबर! हाच मुख्य मुद्दा आहे. आता आपण याला थोडं आणखी आव्हानात्मक बनवूया. {memory_note}"
+                elif is_hindi:
+                    feedback = f"बिल्कुल सही! यही मुख्य विचार है। आइए अब इसे थोड़ा और चुनौतीपूर्ण बनाते हैं। {memory_note}"
+                elif is_hinglish:
+                    feedback = f"Exactly! Yahi key idea hai. Let's make it a little more challenging! {memory_note}"
+                else:
+                    feedback = f"Exactly! That's the key idea. Let's make it a little more challenging. {memory_note}"
             else:
-                feedback = f"अच्छा प्रयास! सही उत्तर '{q.correct_answer}' है। आइए इसे नए तरीके से समझें।" if is_hindi else f"Good attempt! The correct answer is '{q.correct_answer}'. Let's revisit this with an intuitive analogy."
+                if is_marathi:
+                    feedback = f"जवळपास बरोबर! गोंधळ कुठे झाला हे माझ्या लक्षात आले. चला, याकडे दुसऱ्या दृष्टीकोनातून पाहूया. योग्य उत्तर '{q.correct_answer}' आहे."
+                elif is_hindi:
+                    feedback = f"लगभग सही! मैं समझ सकता हूँ कि भ्रम कहाँ हुआ। आइए इसे दूसरे तरीके से देखते हैं। सही उत्तर '{q.correct_answer}' है।"
+                elif is_hinglish:
+                    feedback = f"Almost! I can see where the confusion happened. Let's look at it another way. Correct concept: '{q.correct_answer}'."
+                else:
+                    feedback = f"Almost. I can see where the confusion happened. Let's look at it another way. The key answer is '{q.correct_answer}'."
 
         misconception_explanation = result_dict.get("misconception_explanation", "")
         if not is_correct and not misconception_explanation:

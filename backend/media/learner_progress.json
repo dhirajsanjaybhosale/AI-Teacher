@@ -1,5 +1,5 @@
 {
-  "total_lessons_studied": 14,
+  "total_lessons_studied": 16,
   "topics_studied": [
     "Mastering MATH",
     "Mastering Sample_Chapter.Pdf",
@@ -13,13 +13,15 @@
     "Mastering TCP vs UDP",
     "photosynthesis in Hindi (हिंदी पाठ)",
     "Mastering Round 2 Technical Assessment.docx",
-    "Mastering latest developments in AI agents",
-    "Mastering Sky Blue"
+    "Depth-First Search (DFS) (Hinglish)",
+    "Binary Trees & BST (Hinglish)",
+    "Binary Search (Hinglish)",
+    "Clanuage (Hinglish)"
   ],
   "segments_completed": 0,
-  "questions_attempted": 16,
+  "questions_attempted": 15,
   "questions_correct": 7,
-  "accuracy_percentage": 43.8,
+  "accuracy_percentage": 46.7,
   "all_misconceptions_encountered": [
     "Student believes current increases when resistance increases, confusing inverse with direct proportionality.",
     "Student confused the source of oxygen with CO2 carbon fixation rather than water photolysis."

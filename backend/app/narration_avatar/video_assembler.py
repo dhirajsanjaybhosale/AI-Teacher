@@ -318,6 +318,84 @@ class VideoAssembler:
             "relative_url": f"/media/videos/{filename}"
         }
 
+    def assemble_full_lesson_video(
+        self,
+        lesson_plan: Any,
+        output_filename: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        Assembles all segments of a lesson into a single continuous MP4 video.
+        Ensures all segment videos are generated, then stitches them using FFmpeg concat protocol.
+        """
+        if not lesson_plan.segments:
+            return {}
+
+        total_segs = len(lesson_plan.segments)
+        segment_files = []
+        total_duration = 0.0
+
+        for idx, seg in enumerate(lesson_plan.segments):
+            seg_video_path = None
+            if getattr(seg, "video_url", None):
+                local_p = seg.video_url.lstrip("/")
+                if os.path.exists(local_p) and os.path.getsize(local_p) > 0:
+                    seg_video_path = local_p
+
+            if not seg_video_path:
+                v_res = self.assemble_segment_video(
+                    segment=seg,
+                    lesson_title=lesson_plan.title,
+                    segment_index=idx + 1,
+                    total_segments=total_segs,
+                    language=lesson_plan.target_language
+                )
+                seg.video_url = v_res["relative_url"]
+                seg_video_path = v_res["video_path"]
+                total_duration += v_res["duration"]
+            else:
+                total_duration += getattr(seg, "actual_seconds", 0.0)
+
+            segment_files.append(os.path.abspath(seg_video_path))
+
+        unique_id = output_filename or f"full_{lesson_plan.lesson_id}"
+        out_filename = f"{unique_id}.mp4"
+        out_path = os.path.join(self.output_dir, out_filename)
+
+        # Build FFmpeg concat list file
+        concat_list_path = os.path.join(self.output_dir, f"{unique_id}_list.txt")
+        with open(concat_list_path, "w", encoding="utf-8") as f:
+            for sf in segment_files:
+                clean_path = sf.replace("\\", "/")
+                f.write(f"file '{clean_path}'\n")
+
+        # Concat command
+        cmd = [
+            self.ffmpeg_exe, "-y",
+            "-f", "concat",
+            "-safe", "0",
+            "-i", concat_list_path,
+            "-c", "copy",
+            "-movflags", "+faststart",
+            out_path
+        ]
+        subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+        try:
+            os.remove(concat_list_path)
+        except OSError:
+            pass
+
+        full_url = f"/media/videos/{out_filename}"
+        lesson_plan.full_video_url = full_url
+        lesson_plan.video_duration_seconds = round(total_duration, 2)
+
+        return {
+            "video_path": out_path,
+            "duration": total_duration,
+            "filename": out_filename,
+            "relative_url": full_url
+        }
+
 
 # Global singleton
 video_assembler = VideoAssembler()

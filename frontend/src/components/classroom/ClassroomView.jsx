@@ -76,6 +76,22 @@ export default function ClassroomView({
   const currentPartNum = currentSegmentIndex + 1;
   const progressPct = Math.round((currentPartNum / totalSegments) * 100);
 
+  // Lesson duration and progress calculations
+  const [currentSegVideoSec, setCurrentSegVideoSec] = useState(0);
+  const totalTargetSeconds = activeLesson?.target_duration_seconds || ((activeLesson?.estimated_minutes || 10) * 60);
+
+  const prevCompletedSecs = (activeLesson?.segments || [])
+    .slice(0, currentSegmentIndex)
+    .reduce((acc, seg) => acc + (seg.actual_seconds || seg.target_seconds || 120), 0);
+  const lessonProgressSeconds = Math.min(totalTargetSeconds, Math.floor(prevCompletedSecs + currentSegVideoSec));
+
+  const formatSecs = (sec) => {
+    if (!sec || isNaN(sec)) return '00:00';
+    const m = Math.floor(sec / 60);
+    const s = Math.floor(sec % 60);
+    return `${m < 10 ? '0' : ''}${m}:${s < 10 ? '0' : ''}${s}`;
+  };
+
   const getTeachingState = () => {
     if (isEvaluating) return 'evaluating';
     if (evaluationResult?.is_correct) return 'correct';
@@ -98,6 +114,27 @@ export default function ClassroomView({
                 ✓ Grounded in {activeLesson.source_name}
               </span>
             )}
+          </div>
+
+          {/* Real-time Lesson Duration & Module Progress Ticker */}
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '8px',
+            marginTop: '10px',
+            padding: '6px 14px',
+            borderRadius: '8px',
+            background: 'rgba(15, 23, 42, 0.85)',
+            border: '1px solid rgba(99, 102, 241, 0.35)',
+            fontSize: '0.84rem',
+            fontFamily: 'monospace',
+            color: '#cbd5e1'
+          }}>
+            <span style={{ color: '#a5b4fc', fontWeight: '600' }}>Lesson Duration:</span> {formatSecs(totalTargetSeconds)}
+            <span style={{ color: '#475569' }}>|</span>
+            <span style={{ color: '#38bdf8', fontWeight: '600' }}>Progress:</span> {formatSecs(lessonProgressSeconds)} / {formatSecs(totalTargetSeconds)}
+            <span style={{ color: '#475569' }}>|</span>
+            <span style={{ color: '#34d399', fontWeight: '600' }}>Module:</span> {currentPartNum.toString().padStart(2, '0')} / {totalSegments.toString().padStart(2, '0')}
           </div>
         </div>
 
@@ -149,6 +186,7 @@ export default function ClassroomView({
               totalSegments={totalSegments}
               isRemediation={isRemediationMode}
               isLoadingVideo={isLoadingVideo}
+              onTimeUpdate={(sec) => setCurrentSegVideoSec(sec)}
             />
           )}
 

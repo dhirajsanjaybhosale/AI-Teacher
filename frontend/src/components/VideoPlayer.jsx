@@ -9,7 +9,8 @@ export default function VideoPlayer({
   totalSegments,
   isRemediation,
   onVideoEnded,
-  isLoadingVideo
+  isLoadingVideo,
+  onTimeUpdate
 }) {
   const videoRef = useRef(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -55,8 +56,10 @@ export default function VideoPlayer({
 
   const handleTimeUpdate = () => {
     if (videoRef.current) {
-      setCurrentTime(videoRef.current.currentTime);
+      const cur = videoRef.current.currentTime;
+      setCurrentTime(cur);
       setDuration(videoRef.current.duration || 0);
+      onTimeUpdate?.(cur);
     }
   };
 

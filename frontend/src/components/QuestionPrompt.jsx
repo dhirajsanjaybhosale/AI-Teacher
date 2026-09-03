@@ -179,17 +179,10 @@ export default function QuestionPrompt({
           {!evaluationResult.is_correct && (evaluationResult.misconception_explanation || evaluationResult.misconception) && (
             <div className="misconception-callout">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                <span className="misconception-tag">Diagnosed Mental Gap</span>
-                {evaluationResult.recommended_strategy && (
-                  <span className="strategy-tag" style={{ fontSize: '0.72rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc', border: '1px solid rgba(99,102,241,0.4)', fontWeight: '600' }}>
-                    Strategy: {evaluationResult.recommended_strategy.replace(/_/g, ' ').toUpperCase()}
-                  </span>
-                )}
-                {evaluationResult.severity && (
-                  <span className="severity-tag" style={{ fontSize: '0.70rem', padding: '2px 6px', borderRadius: '4px', background: evaluationResult.severity === 'high' ? 'rgba(239,68,68,0.2)' : 'rgba(245,158,11,0.2)', color: evaluationResult.severity === 'high' ? '#f87171' : '#fbbf24' }}>
-                    Severity: {evaluationResult.severity.toUpperCase()}
-                  </span>
-                )}
+                <span className="misconception-tag">💡 Key Concept to Clarify</span>
+                <span style={{ fontSize: '0.74rem', padding: '2px 8px', borderRadius: '4px', background: 'rgba(99,102,241,0.15)', color: '#a5b4fc', fontWeight: '500' }}>
+                  Pedagogical Guidance
+                </span>
               </div>
               <p className="misconception-text">{evaluationResult.misconception_explanation || evaluationResult.misconception}</p>
             </div>

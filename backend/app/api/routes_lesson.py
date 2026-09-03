@@ -55,11 +55,16 @@ async def create_lesson(
     effective_goal = routing_result.detected_goal or (stud_prof.learning_profile.learning_goals[0] if stud_prof.learning_profile.learning_goals else "understand")
     effective_style = routing_result.detected_style or (teaching_style if teaching_style != "Simple" else (stud_prof.learning_profile.learning_styles[0] if stud_prof.learning_profile.learning_styles else "Visual"))
 
+    # Prioritize explicit duration passed by user if not inferred from textual query
+    effective_minutes = time_minutes
+    if routing_result.detected_minutes and ("minute" in (topic or "").lower() or "min" in (topic or "").lower() or "hour" in (topic or "").lower()):
+        effective_minutes = routing_result.detected_minutes
+
     # 2. Setup Learner Preferences
     preferences = LearnerPreferences(
         topic=routing_result.clean_topic or topic or doc_filename or "Core Concepts",
         level=effective_level,
-        time_minutes=routing_result.detected_minutes or time_minutes,
+        time_minutes=effective_minutes,
         language=effective_lang,
         goal=effective_goal,
         teaching_style=effective_style,
@@ -147,4 +152,19 @@ async def get_lesson(lesson_id: str):
     lesson = session_store.get_lesson(lesson_id)
     if not lesson:
         raise HTTPException(status_code=404, detail="Lesson not found.")
+    return lesson
+
+
+@router.post("/{lesson_id}/assemble-full-video", response_model=LessonPlan)
+async def assemble_full_video(lesson_id: str):
+    """
+    Assembles all segments of the lesson into a continuous full-length MP4 video.
+    """
+    lesson = session_store.get_lesson(lesson_id)
+    if not lesson:
+        raise HTTPException(status_code=404, detail="Lesson not found.")
+
+    print(f"[VIDEO] Assembling full video for lesson '{lesson.title}' ({len(lesson.segments)} segments)...")
+    res = video_assembler.assemble_full_lesson_video(lesson)
+    session_store.save_lesson(lesson)
     return lesson

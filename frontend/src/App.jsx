@@ -10,6 +10,7 @@ import StudyPlanView from './components/study_plan/StudyPlanView';
 import StudentProfileView from './components/profile/StudentProfileView';
 import SettingsView from './components/settings/SettingsView';
 import DeveloperModeModal from './components/settings/DeveloperModeModal';
+import LessonPlanReviewModal from './components/classroom/LessonPlanReviewModal';
 import LoadingOverlay from './components/LoadingOverlay';
 
 import {
@@ -54,6 +55,7 @@ export default function App() {
   // Loading States
   const [isLoadingLesson, setIsLoadingLesson] = useState(false);
   const [isLoadingVideo, setIsLoadingVideo] = useState(false);
+  const [showLessonPlanReview, setShowLessonPlanReview] = useState(false);
 
   // Search buffer from TopHeader
   const [pendingSearchQuery, setPendingSearchQuery] = useState('');
@@ -108,7 +110,7 @@ export default function App() {
       setQuiz(null);
       setReport(null);
       setClassroomViewState('lesson');
-      setActiveNav('classroom');
+      setShowLessonPlanReview(true); // Display the Personalized Lesson Plan review screen first!
 
       // Refresh profile to reflect active lesson
       getStudentProfile().then((data) => setStudentProfile(data));
@@ -118,6 +120,11 @@ export default function App() {
     } finally {
       setIsLoadingLesson(false);
     }
+  };
+
+  const handleStartClassroomSession = () => {
+    setShowLessonPlanReview(false);
+    setActiveNav('classroom');
   };
 
   // Start Topic from Pill, Recommendation, or Streak Card
@@ -387,6 +394,15 @@ export default function App() {
         activeLesson={activeLesson}
         activeSegment={activeSegment}
       />
+
+      {/* Personalized Lesson Plan Review Modal (Shown before classroom starts) */}
+      {showLessonPlanReview && activeLesson && (
+        <LessonPlanReviewModal
+          lessonPlan={activeLesson}
+          onStartLesson={handleStartClassroomSession}
+          onClose={() => setShowLessonPlanReview(false)}
+        />
+      )}
 
       {/* Loading Overlay */}
       {isLoadingLesson && (

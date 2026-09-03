@@ -15,11 +15,14 @@ class SessionStore:
         self._quizzes: Dict[str, Quiz] = {}
         self._reports: Dict[str, FeedbackReport] = {}
         self._misconceptions: Dict[str, List[str]] = {}
+        self._answer_history: Dict[str, List[Dict[str, Any]]] = {}
 
     def save_lesson(self, lesson: LessonPlan) -> None:
         self._lessons[lesson.lesson_id] = lesson
         if lesson.lesson_id not in self._misconceptions:
             self._misconceptions[lesson.lesson_id] = []
+        if lesson.lesson_id not in self._answer_history:
+            self._answer_history[lesson.lesson_id] = []
 
     def get_lesson(self, lesson_id: str) -> Optional[LessonPlan]:
         return self._lessons.get(lesson_id)
@@ -32,6 +35,30 @@ class SessionStore:
 
     def get_misconceptions(self, lesson_id: str) -> List[str]:
         return self._misconceptions.get(lesson_id, [])
+
+    def record_student_answer(
+        self,
+        lesson_id: str,
+        segment_id: str,
+        question_text: str,
+        user_answer: str,
+        is_correct: bool,
+        feedback: str,
+        misconception: Optional[str] = None
+    ) -> None:
+        if lesson_id not in self._answer_history:
+            self._answer_history[lesson_id] = []
+        self._answer_history[lesson_id].append({
+            "segment_id": segment_id,
+            "question_text": question_text,
+            "user_answer": user_answer,
+            "is_correct": is_correct,
+            "feedback": feedback,
+            "misconception": misconception
+        })
+
+    def get_student_answers(self, lesson_id: str) -> List[Dict[str, Any]]:
+        return self._answer_history.get(lesson_id, [])
 
     def save_quiz(self, quiz: Quiz) -> None:
         self._quizzes[quiz.lesson_id] = quiz
@@ -50,6 +77,7 @@ class SessionStore:
         self._quizzes.pop(lesson_id, None)
         self._reports.pop(lesson_id, None)
         self._misconceptions.pop(lesson_id, None)
+        self._answer_history.pop(lesson_id, None)
 
 
 class LearnerProfileStore:

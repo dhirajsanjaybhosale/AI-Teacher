@@ -137,13 +137,20 @@ class OfflineProvider(LLMProvider):
     def generate_json(self, prompt: str, system_prompt: Optional[str] = None) -> Dict[str, Any]:
         full_prompt = (prompt + "\n" + (system_prompt or ""))
         p_lower = full_prompt.lower()
+        is_marathi = (
+            "marathi" in p_lower or '"language": "mr"' in p_lower or
+            'target_language: mr' in p_lower or 'मराठी' in full_prompt or
+            'in marathi' in p_lower or '"language": "mr"' in (system_prompt or "").lower()
+        )
         is_hinglish = (
-            "hinglish" in p_lower or '"language": "hinglish"' in p_lower or
-            'target_language: hinglish' in p_lower or '"language": "hinglish"' in (system_prompt or "").lower() or
-            'in hinglish' in p_lower or 'hinglish mein' in p_lower
+            not is_marathi and (
+                "hinglish" in p_lower or '"language": "hinglish"' in p_lower or
+                'target_language: hinglish' in p_lower or '"language": "hinglish"' in (system_prompt or "").lower() or
+                'in hinglish' in p_lower or 'hinglish mein' in p_lower
+            )
         )
         is_hindi = (
-            not is_hinglish and (
+            not is_hinglish and not is_marathi and (
                 "hindi" in p_lower or '"language": "hi"' in p_lower or
                 'target_language: hi' in p_lower or 'हिंदी' in full_prompt or
                 'in natural hindi' in p_lower or '"language": "hi"' in (system_prompt or "").lower()
@@ -166,7 +173,7 @@ class OfflineProvider(LLMProvider):
         # 3. FORMATIVE ANSWER EVALUATION REQUEST
         # -------------------------------------------------------------
         if "evaluate the student" in p_lower or "student's submitted answer" in p_lower:
-            return self._handle_evaluation(full_prompt, is_hindi, is_hinglish)
+            return self._handle_evaluation(full_prompt, is_hindi, is_hinglish, is_marathi=is_marathi)
 
         # -------------------------------------------------------------
         # 4. ADAPTIVE REMEDIATION RE-EXPLANATION REQUEST
@@ -183,7 +190,7 @@ class OfflineProvider(LLMProvider):
         # -------------------------------------------------------------
         # 6. LESSON PLANNING / CURRICULUM SYNTHESIS REQUEST
         # -------------------------------------------------------------
-        return self._handle_lesson_plan(full_prompt, is_hindi, is_hinglish)
+        return self._handle_lesson_plan(full_prompt, is_hindi, is_hinglish, is_marathi=is_marathi)
 
     def _extract_clean_topic(self, prompt: str) -> Tuple[str, str]:
         """
@@ -285,25 +292,182 @@ class OfflineProvider(LLMProvider):
 
         return "General Science", "flowchart"
 
-    def _handle_lesson_plan(self, prompt: str, is_hindi: bool, is_hinglish: bool = False) -> Dict[str, Any]:
+    def _detect_prerequisites(self, topic: str, subject: str) -> List[str]:
+        """Infers realistic educational prerequisites based on topic and subject domain."""
+        t_low = topic.lower()
+        sub_low = subject.lower()
+        if "operating system" in t_low or "process" in t_low or "kernel" in t_low:
+            return ["Computer Architecture Basics", "CPU Registers & Assembly", "Memory Hierarchy (RAM & Cache)"]
+        elif "react" in t_low or "component" in t_low or "hook" in t_low:
+            return ["JavaScript ES6+ Syntax (Arrow Functions, Destructuring)", "DOM Tree & Event Handling", "HTML5 & Web Fundamentals"]
+        elif "binary search" in t_low or "tree" in t_low or "algorithm" in t_low:
+            return ["Array Indexing & Random Access", "Asymptotic Big-O Complexity", "Basic Conditional Logic"]
+        elif "recursion" in t_low:
+            return ["Functions & Return Values", "Memory Call Stack Basics", "Conditional Base Conditions"]
+        elif "black hole" in t_low or "relativity" in t_low:
+            return ["Newtonian Universal Gravitation", "Escape Velocity Concepts", "Speed of Light as Cosmic Limit"]
+        elif "quantum" in t_low:
+            return ["Complex Numbers & Vectors", "Matrix Multiplication", "Basic Probability Distributions"]
+        elif "tcp" in t_low or "udp" in t_low or "network" in t_low:
+            return ["OSI Model Overview", "IP Addressing & Packets", "Client-Server Architecture"]
+        elif "inheritance" in t_low or "java" in t_low or "oop" in t_low:
+            return ["Classes and Objects", "Methods and Access Modifiers", "Constructors & Memory Allocation"]
+        elif "heart" in t_low or "cardio" in t_low:
+            return ["Human Organ Systems", "Circulatory Loop Basics", "Oxygen and Carbon Dioxide Exchange"]
+        elif "photosynthesis" in t_low:
+            return ["Plant Cellular Structure", "Chloroplast Organelles", "Basic Chemical Reactions"]
+        elif "newton" in t_low or "motion" in t_low:
+            return ["Scalar vs Vector Quantities", "Velocity & Acceleration", "Mass and Inertia"]
+        elif "stock" in t_low or "market" in t_low or "finance" in t_low:
+            return ["Supply and Demand Principles", "Company Shares & Equity", "Risk vs Expected Return"]
+        elif "revolution" in t_low or "french" in t_low or "history" in t_low:
+            return ["18th Century European Monarchy", "The Three Estates Social Structure", "Enlightenment Ideals"]
+        elif "machine learning" in t_low or "ai" in t_low:
+            return ["Linear Algebra & Matrix Operations", "Derivatives & Gradient Basics", "Data Features & Labels"]
+        elif "dbms" in t_low or "normaliz" in t_low or "database" in t_low:
+            return ["Relational Tables & Attributes", "Primary Keys and Foreign Keys", "Functional Dependencies"]
+        elif "bio" in sub_low:
+            return ["Cellular Biology Foundations", "Organic Molecules & Energy", "Biological Homeostasis"]
+        elif "prog" in sub_low or "comput" in sub_low:
+            return ["Algorithmic Reasoning", "Data Types & Variables", "Control Flow (Loops & Conditionals)"]
+        elif "physic" in sub_low:
+            return ["SI Measurement Units", "Force & Work Relationships", "Conservation Laws"]
+        elif "math" in sub_low:
+            return ["Algebraic Manipulation", "Functions and Graphs", "Logical Deductive Proofs"]
+        else:
+            return ["Foundational Terminology", "First-Principles Thinking", "Core Systematic Observation"]
+
+    def _detect_learning_objectives(self, topic: str, subject: str, is_hindi: bool, is_marathi: bool, is_hinglish: bool) -> List[str]:
+        """Generates clear, pedagogical learning objectives."""
+        if is_marathi:
+            return [
+                f"{topic} चे मूलभूत सिद्धांत आणि रचना समजून घेणे",
+                "डिजिटल व्हाईटबोर्डवरील आकृती आणि कार्यप्रणालीचे विश्लेषण करणे",
+                "संवादात्मक प्रश्नांच्या माध्यमातून संकल्पनेची पडताळणी करणे"
+            ]
+        elif is_hindi:
+            return [
+                f"{topic} के मूलभूत सिद्धांतों और आंतरिक तंत्र को समझना",
+                "डिजिटल व्हाइटबोर्ड आरेखों और कार्यप्रणाली का चरण-दर-चरण विश्लेषण करना",
+                "संवादात्मक प्रश्नों के माध्यम से अवधारणा की दृढ़ता की पुष्टि करना"
+            ]
+        elif is_hinglish:
+            return [
+                f"Master foundational concepts and operational rules of {topic}",
+                "Trace dynamic execution flow and smartboard visual mechanisms",
+                "Validate conceptual intuition through live interactive checkpoints"
+            ]
+        return [
+            f"Understand the governing principles and theoretical core of {topic}",
+            "Analyze step-by-step mechanisms and smartboard visual representations",
+            "Demonstrate mastery through embedded formative checks and applications"
+        ]
+
+    def _build_duration_calibrated_narration(
+        self,
+        base_explanation: str,
+        topic: str,
+        subtopic: str,
+        target_words: int,
+        is_hindi: bool,
+        is_marathi: bool,
+        is_hinglish: bool,
+        phase_index: int = 0
+    ) -> str:
+        """Enriches narration script with structured pedagogical substance to reach target speaking duration."""
+        current_words = len(base_explanation.split())
+        if current_words >= target_words:
+            return base_explanation
+
+        if is_marathi:
+            blocks = [
+                f"चला, हे आपण पायरी-पायरीने समजून घेऊया. आज आपण {topic} मधील {subtopic} चा सखोल अभ्यास करत आहोत. जेव्हा आपण या संकल्पनेकडे पाहतो, तेव्हा सर्वात महत्त्वाची गोष्ट म्हणजे यामागील मूलभूत नियम आणि कारण-परिणाम संबंध स्पष्ट असणे आवश्यक आहे.",
+                f"उजव्या बाजूला असलेल्या डिजिटल व्हाईटबोर्डवर लक्ष द्या. येथे दाखवल्याप्रमाणे, प्रत्येक घटक एका विशिष्ट क्रमाने कार्य करतो. इनपुट दिल्यावर अंतर्गत प्रणाली ते नियम तपासून अचूक परिणाम तयार करते.",
+                f"या संकल्पनेचे एक व्यावहारिक उदाहरण पाहूया. दैनंदिन जीवनात आणि अभियांत्रिकी प्रणालीमध्ये जेव्हा अनेक गोष्टी एकत्र काम करतात, तेव्हा हाच नियम संतुलन राखण्यास मदत करतो. जर हा नियम पाळला नाही, तर संपूर्ण प्रणालीमध्ये अडथळे निर्माण होऊ शकतात.",
+                f"पुढील भागाकडे जाण्यापूर्वी स्वतःला हा प्रश्न विचारा: जर आपण यातील मुख्य घटक बदलला, तर संपूर्ण परिणामावर काय परिणाम होईल? हा विचार तुम्हाला संकल्पना अधिक स्पष्टपणे समजून घेण्यास मदत करतो.",
+                f"थोडक्यात सांगायचे तर, {subtopic} चा मुख्य उद्देश अचूकता आणि कार्यक्षमता सुनिश्चित करणे हा आहे. हा पाया पक्का झाल्यास पुढील सर्व प्रगत विषय सहज समजतील."
+            ]
+        elif is_hindi:
+            blocks = [
+                f"आइए इसे चरण-दर-चरण गहराई से समझते हैं। आज हम {topic} के अंतर्गत {subtopic} का अध्ययन कर रहे हैं। किसी भी वैज्ञानिक या तकनीकी प्रणाली को समझने के लिए उसके मूलभूत नियमों और आंतरिक तंत्र को जानना सबसे आवश्यक होता है।",
+                f"दाईं ओर स्थित डिजिटल व्हाइटबोर्ड पर ध्यान दें। जैसा कि आप आरेख में देख सकते हैं, प्रत्येक चरण पूर्व-निर्धारित तर्क के अनुसार आगे बढ़ता है। जब प्रारंभिक इनपुट प्राप्त होता है, तो सिस्टम इन नियमों को लागू करके वांछित परिणाम उत्पन्न करता है।",
+                f"इसका एक व्यावहारिक उदाहरण लेते हैं। वास्तविक दुनिया के इंजीनियरिंग सिस्टम में, जब विभिन्न घटकों के बीच समन्वय की आवश्यकता होती है, तो यही सिद्धांत स्थिरता और विश्वसनीयता सुनिश्चित करता है। यदि हम इस मूलभूत प्रक्रिया को नजरअंदाज करें, तो सिस्टम में अप्रत्याशित बाधाएं आ सकती हैं।",
+                f"अगले चरण पर जाने से पहले एक क्षण रुककर विचार कीजिए: यदि हम इस मुख्य चर या प्रतिबंध को बदलते हैं, तो अंतिम परिणाम पर क्या प्रभाव पड़ेगा? इस प्रश्न का विश्लेषण आपके वैचारिक मॉडल को और अधिक मजबूत बनाएगा।",
+                f"संक्षेप में, {subtopic} की यह समझ आपको जटिल वास्तविक समस्याओं को हल करने और सिस्टम की सीमाओं को प्रबंधित करने में सक्षम बनाती है।"
+            ]
+        elif is_hinglish:
+            blocks = [
+                f"Okay, chaliye isse step-by-step understand karte hain. Aaj hum {topic} me {subtopic} ko deeply explore kar rahe hain. Kisi bhi complex topic ko master karne ke liye sabse pehle uske underlying governing principles aur execution flow ko clear karna zaroori hota hai.",
+                f"Right side me hamare digital smartboard par dhyan dijiye. Diagram me aap clearly observe kar sakte hain ki kaise har state transition ek deterministic rule follow karta hai. Jab input system me enter hota hai, tab structured checks execute hote hain to deliver the exact expected output.",
+                f"Ek practical real-world analogy dekhte hain. Production environments me jab high throughput aur zero-error requirement hoti hai, tab yahi architecture implement kiya jaata hai. Surface-level definitions memorize karne ke bajaye causal mechanism samajhna sabse powerful skill hai.",
+                f"Before I explain the next part, take a moment to reflect: agar hum constraints ko modify karte hain, to system behavior kaise adapt hoga? Notice how balancing these parameters prevents system bottlenecks.",
+                f"To summarize, {subtopic} ensures stability, efficiency, and predictable outcomes across edge cases, forming a rock-solid foundation for advanced mastery."
+            ]
+        else:
+            blocks = [
+                f"Okay, let's understand this step by step. Today we are exploring {topic}, focusing specifically on {subtopic}. To truly master this subject, we must examine the core governing principles, causal mechanics, and systematic relationships that dictate how the entire system behaves under real-world constraints.",
+                f"Looking closely at our digital whiteboard on the right, observe the structural schematic and execution flow. Each state transition is governed by precise invariants. When an input enters the pipeline, the system verifies operational boundaries before progressing to the subsequent transformational phase, preventing unexpected side effects.",
+                f"To anchor this intuition in your mental model, consider a practical real-world application. In modern scalable engineering and scientific architectures, maintaining stability while optimizing throughput is the primary objective. By applying this exact design pattern, practitioners eliminate single points of failure and guarantee deterministic behavior.",
+                f"Before I explain the next part, what do you think will happen when boundary conditions change? Notice that if you increase the driving parameter without adjusting system resistance, the balance shifts, creating observable trade-offs that we must actively manage.",
+                f"Let us now examine common misconceptions and edge cases. Many students initially assume that this relationship is purely static; however, as the system scales, dynamic feedback loops emerge. Recognizing this distinction is what separates surface-level memorization from deep analytical mastery.",
+                f"In summary, keep these core principles at the forefront of your thinking: deterministic state flow, constraint verification, and systematic trade-off analysis form the bedrock of {subtopic}."
+            ]
+
+        result = base_explanation.rstrip()
+        block_idx = phase_index % len(blocks)
+        while len(result.split()) < target_words:
+            result += " " + blocks[block_idx % len(blocks)]
+            block_idx += 1
+            if block_idx >= len(blocks) * 3:
+                break
+        return result
+
+    def _handle_lesson_plan(self, prompt: str, is_hindi: bool, is_hinglish: bool = False, is_marathi: bool = False) -> Dict[str, Any]:
         topic, context = self._extract_clean_topic(prompt)
         subject, visual_type = self._detect_subject(topic, context)
         t_lower = topic.lower()
-
-        # Parse number of segments requested
         p_lower = prompt.lower()
-        num_segments = 2
-        for n in [6, 5, 4, 3, 2]:
-            if f"{n}-segment" in p_lower or f"exactly {n}" in p_lower or f"{n} instructional segment" in p_lower or f"{n} segment" in p_lower:
+
+        # Parse time minutes budget
+        import re
+        is_7_days = "7-day" in p_lower or "7 days" in p_lower or "seven days" in p_lower
+        time_mins = 10
+        m = re.search(r'(?:time budget:?|in|for)\s*:?\s*(\d+)\s*(?:minutes|mins|m)', p_lower)
+        if m:
+            time_mins = int(m.group(1))
+        elif is_7_days:
+            time_mins = 10080
+
+        # Determine number of segments based on duration
+        if is_7_days:
+            num_segments = 4
+        elif time_mins <= 5:
+            num_segments = 3
+        elif time_mins <= 10:
+            num_segments = 5
+        elif time_mins <= 20:
+            num_segments = 7
+        elif time_mins <= 30:
+            num_segments = 8
+        else:
+            num_segments = 10
+
+        # Allow explicit override if prompt asked for n segments
+        for n in [10, 8, 7, 6, 5, 4, 3, 2]:
+            if f"{n}-segment" in p_lower or f"exactly {n}" in p_lower:
                 num_segments = n
                 break
 
-        is_7_days = any(k in p_lower for k in ["7 days", "7_days", "7-day", "10080"])
-        if is_7_days:
-            num_segments = 4
+        from app.lesson_planning.duration_validator import duration_validator
+        target_lang = "mr" if is_marathi else ("hi" if is_hindi else ("hinglish" if is_hinglish else "en"))
+        total_target_words = duration_validator.calculate_word_budget(time_mins if not is_7_days else 20, target_lang, num_segments=num_segments)
+        words_per_segment = max(70, total_target_words // num_segments)
 
-        segments = self._generate_domain_segments(topic, subject, visual_type, context, is_hindi, num_segments)
+        segments = self._generate_domain_segments(topic, subject, visual_type, context, is_hindi, num_segments, words_per_segment=words_per_segment, is_marathi=is_marathi, is_hinglish=is_hinglish)
         final_segments = segments[:num_segments] if len(segments) >= num_segments else segments
+
+        prerequisites = self._detect_prerequisites(topic, subject)
+        learning_objectives = self._detect_learning_objectives(topic, subject, is_hindi, is_marathi, is_hinglish)
 
         # 7-day structured roadmap
         study_roadmap_7_days = None
@@ -376,38 +540,260 @@ class OfflineProvider(LLMProvider):
             {"step": 5, "topic": f"Mastery Assessment & Capstone", "status": "upcoming", "difficulty": "advanced"}
         ]
 
-        title = f"{topic} (हिंदी पाठ)" if is_hindi else (f"{topic} (Hinglish)" if is_hinglish else f"Mastering {topic}")
-        target_lang = "hi" if is_hindi else ("hinglish" if is_hinglish else "en")
+        title = f"{topic} (मराठी पाठ)" if is_marathi else (f"{topic} (हिंदी पाठ)" if is_hindi else (f"{topic} (Hinglish)" if is_hinglish else f"Mastering {topic}"))
+
+        desc = (
+            f"{topic} च्या मुख्य संकल्पना आणि प्रत्यक्ष उपयोगांवर आधारित संवादात्मक वर्ग." if is_marathi else (
+                f"{topic} के मुख्य सिद्धांतों और व्यावहारिक अनुप्रयोगों पर एक संवादात्मक मास्टरक्लास।" if is_hindi else (
+                    f"{topic} ki core concepts aur practical applications par live interactive lesson." if is_hinglish else
+                    f"An intuitive, structured interactive masterclass on {topic}."
+                )
+            )
+        )
 
         return {
             "lesson_id": f"lesson_{uuid.uuid4().hex[:8]}",
             "title": title,
             "subject": subject,
-            "description": f"{topic} के मुख्य सिद्धांतों और व्यावहारिक अनुप्रयोगों पर एक संवादात्मक मास्टरक्लास।" if is_hindi else (f"{topic} ki core concepts aur practical applications par live interactive lesson." if is_hinglish else f"An intuitive, structured interactive masterclass on {topic}."),
-            "learning_objectives": [
-                f"{topic} के मूलभूत सिद्धांतों को समझना" if is_hindi else f"Understand the foundational principles of {topic}",
-                "कार्यात्मक तंत्र और व्यावहारिक उदाहरणों का विश्लेषण करना" if is_hindi else "Analyze operational mechanisms and real-world trade-offs",
-                "प्रश्नों के माध्यम से अवधारणा की पुष्टि करना" if is_hindi else "Verify conceptual mastery through formative checks"
-            ],
+            "description": desc,
+            "learning_objectives": learning_objectives,
+            "prerequisites": prerequisites,
             "target_level": "beginner",
             "target_language": target_lang,
-            "estimated_minutes": 10080 if is_7_days else (5 * len(final_segments)),
+            "estimated_minutes": 10080 if is_7_days else time_mins,
+            "target_duration_seconds": 10080 * 60 if is_7_days else time_mins * 60,
             "goal": "understand",
             "source_type": "pdf" if context else "topic",
             "source_name": topic,
+            "grounded_source_display": f"✓ Lesson grounded in {topic}" if context else "✓ Personalized for your learning level",
             "segments": final_segments,
             "study_roadmap_7_days": study_roadmap_7_days,
             "learning_path": learning_path
         }
 
-    def _generate_domain_segments(self, topic: str, subject: str, visual_type: str, context: str, is_hindi: bool, count: int) -> List[Dict[str, Any]]:
+    def _build_whiteboard_data(self, topic: str, subject: str, subtopic: str, visual_type: str, code_or_math: str, visual_desc: str, key_points: List[str]) -> Dict[str, Any]:
+        sub_low = (subject or "").lower()
+        v_low = (visual_type or "").lower()
+        t_low = (topic or "").lower()
+
+        # PROGRAMMING: Code -> Execution -> Output
+        if any(w in sub_low or w in t_low for w in ["prog", "python", "code", "java", "react", "c++", "recursion", "script", "algorithm", "data structure", "binary search", "software"]):
+            code_snippet = code_or_math or f"// {topic}: {subtopic}\nfunction executeConcept(inputData) {{\n  const state = initializeContext(inputData);\n  return applyTransform(state);\n}}"
+            return {
+                "domain": "programming",
+                "code": code_snippet,
+                "execution": [
+                    f"1. Stack frame initialized for {subtopic}",
+                    f"2. Inspect input arguments & invariants ({topic})",
+                    "3. Step-by-step state transformation loop executed",
+                    "4. Base condition satisfied; stack frame popped"
+                ],
+                "output": f"== EXECUTION OUTPUT: {topic} ==\nStatus: SUCCESS (exit code 0)\nReturn: Validated Result for '{subtopic}'\nLatency: 0.8ms"
+            }
+
+        # MATHEMATICS: Equation -> Steps -> Graph -> Answer
+        elif any(w in sub_low or w in t_low for w in ["math", "calc", "algebra", "probability", "derivative", "integral", "matrix"]):
+            equation_str = code_or_math or "f(x) = \\lim_{h \\to 0} \\frac{f(x+h) - f(x)}{h}"
+            return {
+                "domain": "mathematics",
+                "equation": equation_str,
+                "steps": [
+                    f"Step 1: Formulate fundamental equation for {topic}",
+                    f"Step 2: Identify boundary parameters for {subtopic}",
+                    "Step 3: Algebraic reduction & invariant verification",
+                    "Step 4: Solve for converged target value"
+                ],
+                "graph": f"Monotonic convergence curve across {topic} domain",
+                "answer": f"Solution Verified: Invariant holds for {subtopic}"
+            }
+
+        # PHYSICS: Diagram -> Formula -> Calculation
+        elif any(w in sub_low or w in t_low for w in ["physic", "electr", "ohm", "newton", "motion", "gravity", "wave", "optics", "black hole", "singularity"]):
+            formula_str = code_or_math or ("V = I \\times R" if "electr" in sub_low or "ohm" in t_low else "F_{net} = m \\cdot a")
+            return {
+                "domain": "physics",
+                "diagram": f"Vector field & force schematic: {topic} ({subtopic})",
+                "formula": formula_str,
+                "calculation": f"Calculation: Dynamic Equilibrium verified across {subtopic} boundaries."
+            }
+
+        # BIOLOGY: Diagram -> Labels -> Process
+        elif any(w in sub_low or w in t_low for w in ["bio", "cell", "photosynthesis", "respiration", "heart", "dna", "genetics", "organism"]):
+            return {
+                "domain": "biology",
+                "diagram": f"Anatomical / Cellular Structure: {topic} ({subtopic})",
+                "labels": [
+                    f"1. Outer Structural Boundary ({topic})",
+                    f"2. Catalytic / Active Functional Zone ({subtopic})",
+                    "3. Transport Channels & Intercellular Pathways",
+                    "4. Synthesized Energy Currency & Metabolites"
+                ],
+                "process": visual_desc or f"Sequential physiological cascade in {topic}"
+            }
+
+        # HISTORY: Timeline -> Map -> Events
+        elif any(w in sub_low or w in t_low for w in ["history", "war", "revolution", "empire", "civilization", "french"]):
+            return {
+                "domain": "history",
+                "timeline": [
+                    f"Phase 1: Pre-conditions and socio-economic catalysts for {topic}",
+                    f"Phase 2: Watershed event and critical turning point ({subtopic})",
+                    "Phase 3: Institutional transformation and immediate aftermath",
+                    "Phase 4: Long-term geopolitical and cultural legacy"
+                ],
+                "map_context": f"Geographical theater and boundary shifts during {topic}",
+                "events": [
+                    f"Origin & Catalyst: Initial mobilization in {topic}",
+                    f"Climax: Key institutional transition during {subtopic}",
+                    "Resolution: Modern legal and democratic framework"
+                ]
+            }
+
+        # GENERAL / OTHER
+        else:
+            return {
+                "domain": "general",
+                "title": f"{topic} — {subtopic}",
+                "diagram_type": (visual_type or "FLOWCHART").upper(),
+                "specification": code_or_math or visual_desc or f"Systematic model for {topic}",
+                "key_principles": key_points[:3] if key_points else [f"Foundations of {topic}", "Causal progression", "Verified outcome"]
+            }
+
+    def _post_process_segments(
+        self,
+        raw_segments: List[Dict[str, Any]],
+        topic: str,
+        subject: str,
+        visual_type: str,
+        target_count: int,
+        words_per_segment: int,
+        is_hindi: bool,
+        is_marathi: bool,
+        is_hinglish: bool
+    ) -> List[Dict[str, Any]]:
+        segments = list(raw_segments)
+        while len(segments) < target_count:
+            idx = len(segments) + 1
+            if idx == 3:
+                sub_title = f"{topic}: Visual Smartboard Demonstration & State Flow" if not is_hindi else f"{topic}: स्मार्टबोर्ड विज़ुअल प्रदर्शन और प्रवाह"
+                desc = f"Visual step-by-step state transition on the smartboard for {topic}"
+                q_text = f"How does observing the smartboard execution flow help verify {topic}?" if not is_hindi else f"स्मार्टबोर्ड प्रवाह देखने से {topic} को समझने में कैसे मदद मिलती है?"
+                correct = "It reveals step-by-step state transitions and verifies boundary invariants" if not is_hindi else "यह चरण-दर-चरण परिवर्तनों और नियमों को स्पष्ट करता है"
+            elif idx == 4:
+                sub_title = f"{topic}: Real-World Analogy & Practical Trade-offs" if not is_hindi else f"{topic}: व्यावहारिक उदाहरण और वास्तविक प्रभाव"
+                desc = f"Comparative trade-offs and practical architectural patterns in {topic}"
+                q_text = f"What is the most critical real-world constraint when applying {topic}?" if not is_hindi else f"{topic} को लागू करते समय सबसे महत्वपूर्ण व्यावहारिक सीमा क्या है?"
+                correct = "Balancing throughput and latency while maintaining system correctness" if not is_hindi else "सिस्टम की स्थिरता और दक्षता के बीच संतुलन बनाए रखना"
+            elif idx == 5:
+                sub_title = f"{topic}: Interactive Checkpoint & Guided Problem Solving" if not is_hindi else f"{topic}: संवादात्मक चेकपॉइंट और समस्या समाधान"
+                desc = f"Guided checkpoint drill testing core mechanics of {topic}"
+                q_text = f"When evaluating an edge case in {topic}, what should be verified first?" if not is_hindi else f"{topic} के जटिल मामले में सबसे पहले क्या जांचना चाहिए?"
+                correct = "Verify fundamental boundary constraints and input invariants" if not is_hindi else "मूलभूत सीमाओं और इनपुट नियमों की पुष्टि करना"
+            elif idx == 6:
+                sub_title = f"{topic}: Edge Cases, Constraints & Failure Modes" if not is_hindi else f"{topic}: जटिल स्थितियाँ और त्रुटि निवारण"
+                desc = f"Edge case analysis and failure prevention patterns for {topic}"
+                q_text = f"What happens when boundary parameters exceed the nominal threshold in {topic}?" if not is_hindi else f"जब पैरामीटर सामान्य सीमा से अधिक हो जाते हैं तो क्या होता है?"
+                correct = "Dynamic feedback mechanisms intervene to prevent system failure" if not is_hindi else "प्रणाली को सुरक्षित रखने के लिए सुरक्षा नियम सक्रिय हो जाते हैं"
+            elif idx == 7:
+                sub_title = f"{topic}: Systems Integration & Production Architecture" if not is_hindi else f"{topic}: सिस्टम एकीकरण और उन्नत वास्तुकला"
+                desc = f"Full architecture integration and production deployment for {topic}"
+                q_text = f"What ensures long-term reliability when deploying {topic} in production?" if not is_hindi else f"{topic} की दीर्घकालिक विश्वसनीयता क्या सुनिश्चित करती है?"
+                correct = "Modular decoupling, telemetry observability, and automated verification" if not is_hindi else "मॉड्यूलर संरचना और निरंतर निगरानी"
+            else:
+                sub_title = f"{topic}: Comprehensive Mastery & Module {idx}" if not is_hindi else f"{topic}: व्यापक सारांश - मॉड्यूल {idx}"
+                desc = f"Comprehensive synthesis and analytical recap of {topic}"
+                q_text = f"What is the overarching pedagogical takeaway from {topic}?" if not is_hindi else f"{topic} का सबसे महत्वपूर्ण निष्कर्ष क्या है?"
+                correct = "Systematic causal reasoning across all operational constraints" if not is_hindi else "सभी नियमों और प्रक्रियाओं की व्यवस्थित समझ"
+
+            new_seg = {
+                "id": f"seg_{idx}",
+                "title": sub_title,
+                "explanation": f"In this module, we explore {sub_title}. Tracing the causal progression and intermediate states provides deep intuition.",
+                "example": f"Like an optimized production pipeline where each stage verifies invariants for {topic}.",
+                "key_points": [
+                    f"Core mechanism of {sub_title}",
+                    "Constraint management and invariant tracking",
+                    "Practical application and robust verification"
+                ],
+                "visual_diagram_type": "process" if idx % 2 == 1 else "flowchart",
+                "visual_description": desc,
+                "visual_code_or_math": f"State_{idx}: Input -> Transform({topic}) -> Output_{idx}",
+                "question": {
+                    "id": f"q_{idx}",
+                    "question_text": q_text,
+                    "options": [
+                        correct,
+                        "Bypassing all verification steps and assuming static states",
+                        "Ignoring operational constraints and error signals",
+                        "Relying on arbitrary unverified heuristics"
+                    ],
+                    "correct_answer": correct,
+                    "hint": f"Focus on systematic verification in {topic}.",
+                    "explanation": f"Systematic verification guarantees predictable and robust behavior in {topic}."
+                }
+            }
+            segments.append(new_seg)
+
+        final_segments = []
+        for i, seg in enumerate(segments[:target_count]):
+            seg["id"] = f"seg_{i+1}"
+            if "question" in seg and isinstance(seg["question"], dict):
+                seg["question"]["id"] = f"q_{i+1}"
+
+            # Duration-calibrate narration explanation
+            base_exp = seg.get("explanation", f"Exploring {seg.get('title', topic)}.")
+            calibrated_exp = self._build_duration_calibrated_narration(
+                base_explanation=base_exp,
+                topic=topic,
+                subtopic=seg.get("title", f"Module {i+1}"),
+                target_words=words_per_segment,
+                is_hindi=is_hindi,
+                is_marathi=is_marathi,
+                is_hinglish=is_hinglish,
+                phase_index=i
+            )
+            seg["explanation"] = calibrated_exp
+
+            # Whiteboard data
+            if not seg.get("whiteboard_data"):
+                seg["whiteboard_data"] = self._build_whiteboard_data(
+                    topic=topic,
+                    subject=subject,
+                    subtopic=seg.get("title", f"Module {i+1}"),
+                    visual_type=seg.get("visual_diagram_type", visual_type),
+                    code_or_math=seg.get("visual_code_or_math", ""),
+                    visual_desc=seg.get("visual_description", ""),
+                    key_points=seg.get("key_points", [])
+                )
+
+            seg["thinking_seconds"] = 20 if seg.get("question") else 0
+            final_segments.append(seg)
+
+        return final_segments
+
+    def _generate_domain_segments(
+        self,
+        topic: str,
+        subject: str,
+        visual_type: str,
+        context: str,
+        is_hindi: bool,
+        count: int,
+        words_per_segment: int = 70,
+        is_marathi: bool = False,
+        is_hinglish: bool = False
+    ) -> List[Dict[str, Any]]:
         t_lower = topic.lower()
+
+        # Helper to finish domain list
+        def finish_segs(raw_list):
+            return self._post_process_segments(raw_list, topic, subject, visual_type, count, words_per_segment, is_hindi, is_marathi, is_hinglish)
 
         # -------------------------------------------------------------
         # DOMAIN 1: PHOTOSYNTHESIS (Biology)
         # -------------------------------------------------------------
         if "photosynthesis" in t_lower:
-            return [
+            return finish_segs([
                 {
                     "id": "seg_1",
                     "title": "प्रकाश संश्लेषण के मूल सिद्धांत: प्रकाश अभिक्रिया" if is_hindi else "Photosynthesis Foundations: Light Reactions",
@@ -462,13 +848,13 @@ class OfflineProvider(LLMProvider):
                         "explanation": "RuBisCO fixes atmospheric CO2 into organic 3-PGA molecules in the stroma."
                     }
                 }
-            ]
+            ])
 
         # -------------------------------------------------------------
         # DOMAIN 2: RECURSION (Programming & CS)
         # -------------------------------------------------------------
         if "recursion" in t_lower:
-            return [
+            return finish_segs([
                 {
                     "id": "seg_1",
                     "title": "रिकर्सन के मूल सिद्धांत: बेस केस और कॉल स्टैक" if is_hindi else "Recursion Foundations: Base Cases & Call Stack",
@@ -523,13 +909,13 @@ class OfflineProvider(LLMProvider):
                         "explanation": "Call stacks operate strictly on LIFO principles; the base case returns to its immediate caller."
                     }
                 }
-            ]
+            ])
 
         # -------------------------------------------------------------
         # DOMAIN 3: BLOCKCHAIN & CRYPTOGRAPHY
         # -------------------------------------------------------------
         if "blockchain" in t_lower:
-            return [
+            return finish_segs([
                 {
                     "id": "seg_1",
                     "title": "ब्लॉकचेन के मूल सिद्धांत: विकेंद्रीकृत लेजर" if is_hindi else "Blockchain Foundations: Decentralized Immutable Ledgers",
@@ -584,13 +970,13 @@ class OfflineProvider(LLMProvider):
                         "explanation": "Miners iteratively increment the nonce until the resulting block hash satisfies the difficulty target."
                     }
                 }
-            ]
+            ])
 
         # -------------------------------------------------------------
         # DOMAIN 4: TCP VS UDP (Networking & CS)
         # -------------------------------------------------------------
         if "tcp" in t_lower or "udp" in t_lower or "packet" in t_lower:
-            return [
+            return finish_segs([
                 {
                     "id": "seg_1",
                     "title": "टीसीपी बनाम यूडीपी: कनेक्शन और विश्वसनीयता" if is_hindi else "TCP vs UDP: Reliability vs Low-Latency Streaming",
@@ -645,13 +1031,13 @@ class OfflineProvider(LLMProvider):
                         "explanation": "The 3-way handshake begins with client SYN, server responds with SYN-ACK, client completes with ACK."
                     }
                 }
-            ]
+            ])
 
         # -------------------------------------------------------------
         # DOMAIN 5: WHY IS THE SKY BLUE (Physics & Optics)
         # -------------------------------------------------------------
         if "sky blue" in t_lower or "rayleigh" in t_lower or "sky" in t_lower:
-            return [
+            return finish_segs([
                 {
                     "id": "seg_1",
                     "title": "आकाश नीला क्यों दिखता है: रेले प्रकीर्णन" if is_hindi else "Why the Sky is Blue: Rayleigh Scattering of Sunlight",
@@ -679,13 +1065,13 @@ class OfflineProvider(LLMProvider):
                         "explanation": "Rayleigh scattering states I ∝ 1/λ⁴; since blue light has a shorter wavelength than red, it scatters roughly 10 times more."
                     }
                 }
-            ]
+            ])
 
         # -------------------------------------------------------------
         # DOMAIN 6: JAVA INHERITANCE (Programming & OOP)
         # -------------------------------------------------------------
         if "java" in t_lower and ("inheritance" in t_lower or "oop" in t_lower):
-            return [
+            return finish_segs([
                 {
                     "id": "seg_1",
                     "title": "जावा में इनहेरिटेंस: कोड पुन: प्रयोज्यता और 'extends'" if is_hindi else "Java Inheritance: Extends, Super & Code Reusability",
@@ -713,13 +1099,13 @@ class OfflineProvider(LLMProvider):
                         "explanation": "The 'super()' call explicitly invokes the superclass constructor from within the subclass."
                     }
                 }
-            ]
+            ])
 
         # -------------------------------------------------------------
         # DOMAIN 7: WATER CYCLE (Earth Science & Geography)
         # -------------------------------------------------------------
         if "water cycle" in t_lower or "hydrological" in t_lower:
-            return [
+            return finish_segs([
                 {
                     "id": "seg_1",
                     "title": "जल चक्र के चरण: वाष्पीकरण, संघनन और वर्षा" if is_hindi else "The Hydrological Cycle: Evaporation, Condensation & Precipitation",
@@ -747,13 +1133,13 @@ class OfflineProvider(LLMProvider):
                         "explanation": "Transpiration is the evaporation of water from plant leaves into the atmosphere via stomata."
                     }
                 }
-            ]
+            ])
 
         # -------------------------------------------------------------
         # DOMAIN 8: QUANTUM COMPUTING (Physics & CS)
         # -------------------------------------------------------------
         if "quantum" in t_lower or "qubit" in t_lower:
-            return [
+            return finish_segs([
                 {
                     "id": "seg_1",
                     "title": "क्वांटम कंप्यूटिंग: क्यूबिट और सुपरपोजिशन" if is_hindi else "Quantum Computing Foundations: Qubits, Superposition & Entanglement",
@@ -781,13 +1167,13 @@ class OfflineProvider(LLMProvider):
                         "explanation": "Superposition allows a single qubit to hold probabilistic amplitudes for |0⟩ and |1⟩ concurrently."
                     }
                 }
-            ]
+            ])
 
         # -------------------------------------------------------------
         # DOMAIN 9: LATEST DEVELOPMENTS IN AI AGENTS / CURRENT TECH
         # -------------------------------------------------------------
         if "agent" in t_lower or "latest" in t_lower or "trends" in t_lower:
-            return [
+            return finish_segs([
                 {
                     "id": "seg_1",
                     "title": "आधुनिक एआई एजेंट और स्वायत्त प्रणालियां" if is_hindi else "Autonomous AI Agents: Tool-Use, Planning & Reasoning Loops",
@@ -795,7 +1181,7 @@ class OfflineProvider(LLMProvider):
                     "example": "एक कुशल सहायक की तरह जो केवल सवाल का जवाब नहीं देता, बल्कि पूरी यात्रा की टिकट बुक करता है, होटल रिजर्व करता है और कैलेंडर अपडेट करता है।" if is_hindi else "Like an executive co-pilot: instead of just summarizing travel tips, it checks flight APIs, books the hotel, and synchronizes your calendar autonomously.",
                     "key_points": [
                         "रीजनिंग लूप्स: ReAct (Reason + Act), Plan-and-Solve" if is_hindi else "Reasoning Architectures: ReAct (Reasoning + Acting) & Reflection loops",
-                        "टूल और फंक्शन कॉलिंग (API, Web, Sandbox Code)" if is_hindi else "Dynamic Tool Orchestration: Web search, Python sandboxes & DB connectors",
+                        "टूल और फंक्शन कॉलिंग (API, Web, Sandbox Code)" if is_hindi else "Dynamic Tool Orchestraction: Web search, Python sandboxes & DB connectors",
                         "मल्टी-एजेंट सहयोग और स्वायत्तता" if is_hindi else "Multi-Agent Consensus: Specialized worker agents coordinating on complex tasks"
                     ],
                     "visual_diagram_type": "architecture",
@@ -815,7 +1201,7 @@ class OfflineProvider(LLMProvider):
                         "explanation": "AI agents plan actions, use external tools, observe outcomes, and iterate toward goal completion."
                     }
                 }
-            ]
+            ])
 
         # -------------------------------------------------------------
         # DOMAIN 10: UNIVERSAL DYNAMIC FALLBACK FOR ANY ARBITRARY TOPIC
@@ -936,7 +1322,7 @@ class OfflineProvider(LLMProvider):
                 }
             })
 
-        return base_segs[:count]
+        return finish_segs(base_segs)
 
     def _handle_evaluation(self, prompt: str, is_hindi: bool, is_hinglish: bool = False) -> Dict[str, Any]:
         p_lower = prompt.lower()
@@ -980,7 +1366,7 @@ class OfflineProvider(LLMProvider):
                 "difficulty": "Adapted Higher",
                 "next_action": "Positive reinforcement & next segment unlock"
             }
-            fb_text = "शानदार! आपका उत्तर वैचारिक रूप से बिल्कुल सटीक है।" if is_hindi else ("Bilkul sahi! Aapka conceptual understanding spot-on hai." if is_hinglish else "Excellent! That is conceptually spot-on and demonstrates clear understanding of the core principle.")
+            fb_text = "बिल्कुल सही! यही मुख्य विचार है। आइए इसे थोड़ा और चुनौतीपूर्ण बनाएं।" if is_hindi else ("Bilkul sahi! Exactly that's the key idea. Let's make it a little more challenging." if is_hinglish else "Exactly! That's the key idea. Let's make it a little more challenging.")
             return {
                 "is_correct": True,
                 "score": 1.0,
@@ -1047,7 +1433,7 @@ class OfflineProvider(LLMProvider):
                 "next_action": f"Deploy {strategy.replace('_', ' ')} video & ask confirmation check"
             }
 
-            fb_text = "अच्छा प्रयास! आपने चरों के संबंध को देखा, लेकिन मुख्य दिशा या सिद्धांत में थोड़ा अंतर रह गया। आइए इसे एक नए सादृश्य से समझें।" if is_hindi else ("Achha koshish! Lekin core principle me confusion hai. Chaliye ek fresh real-world example se isse clarify karte hain." if is_hinglish else "Good attempt! You recognized that the variables interact, but inverted the core operational relationship. Let's revisit this with a fresh intuitive perspective.")
+            fb_text = "लगभग सही। मैं समझ सकता हूँ कि भ्रम कहाँ हुआ। आइए इसे दूसरे नजरिए से देखें।" if is_hindi else ("Almost. I can see where the confusion happened. Let's look at it another way." if is_hinglish else "Almost. I can see where the confusion happened. Let's look at it another way.")
             return {
                 "is_correct": False,
                 "score": 0.2,

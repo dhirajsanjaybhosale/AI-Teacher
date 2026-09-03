@@ -30,14 +30,29 @@ async def submit_answer(sub: AnswerSubmission):
 
     lang = sub.language or lesson.target_language
 
+    # Fetch prior answers from this lesson session for memory
+    prior_answers = session_store.get_student_answers(sub.lesson_id)
+
     # 1. Formative Evaluation
     eval_result = answer_evaluator.evaluate_answer(
         segment=target_seg,
         user_answer=sub.user_answer,
         lesson_title=lesson.title,
-        language=lang
+        language=lang,
+        prior_answers=prior_answers
     )
     print(f"[EVALUATION] Student answer assessed: is_correct={eval_result.is_correct}, score={eval_result.score:.2f}")
+
+    # Record in active session memory so teacher remembers student's answers
+    session_store.record_student_answer(
+        lesson_id=sub.lesson_id,
+        segment_id=target_seg.id,
+        question_text=target_seg.question.question_text if target_seg.question else "",
+        user_answer=sub.user_answer,
+        is_correct=eval_result.is_correct,
+        feedback=eval_result.feedback,
+        misconception=eval_result.misconception if eval_result.misconception_detected else None
+    )
 
     # Track in persistent learner store
     learner_profile_store.record_question_attempt(
@@ -67,6 +82,18 @@ async def submit_answer(sub: AnswerSubmission):
         print(f"[ADAPTATION] Generated remediation segment '{adapted_seg.title}' with video at '{adapted_seg.video_url}'.")
 
     return eval_result
+
+
+@router.get("/session-history/{lesson_id}")
+async def get_session_history(lesson_id: str):
+    """
+    Returns recorded student answer history and teacher memories for the active lesson session.
+    """
+    return {
+        "lesson_id": lesson_id,
+        "answers": session_store.get_student_answers(lesson_id),
+        "misconceptions": session_store.get_misconceptions(lesson_id)
+    }
 
 
 @router.post("/ask-teacher", response_model=FollowUpResponse)

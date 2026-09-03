@@ -35,8 +35,8 @@
   },
   "overall_mastery": 78,
   "quiz_average": 86,
-  "lessons_completed": 30,
-  "hours_learned": 39.8,
+  "lessons_completed": 32,
+  "hours_learned": 40.0,
   "learning_streak_days": 7,
   "today_goal_completed": 3,
   "today_goal_total": 4,
@@ -232,7 +232,7 @@
     {
       "concept": "Ohm's Law",
       "misconception": "Student believes current increases when resistance increases, confusing inverse with direct proportionality.",
-      "attempts": 3,
+      "attempts": 4,
       "mastery_percentage": 68,
       "last_attempted": "Today",
       "ai_recommendation": "Review water-pipe pressure analogy for electrical resistance."
@@ -247,6 +247,24 @@
     }
   ],
   "learning_history": [
+    {
+      "topic": "Mastering Cellular_Respiration_Chapter.Pdf",
+      "date": "Today",
+      "duration_minutes": 5,
+      "quiz_score_percentage": 100,
+      "mastery_delta": "+10%",
+      "language": "en",
+      "status": "Completed"
+    },
+    {
+      "topic": "Mastering Sample_Chapter.Pdf",
+      "date": "Today",
+      "duration_minutes": 5,
+      "quiz_score_percentage": 100,
+      "mastery_delta": "+10%",
+      "language": "en",
+      "status": "Completed"
+    },
     {
       "topic": "Mastering Cellular_Respiration_Chapter.Pdf",
       "date": "Today",
